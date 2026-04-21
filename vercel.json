@@ -1,6 +1,0 @@
-{
-  "buildCommand": "cd siga && npm run build",
-  "outputDirectory": "siga/.next",
-  "installCommand": "cd siga && npm install",
-  "framework": "nextjs"
-}
