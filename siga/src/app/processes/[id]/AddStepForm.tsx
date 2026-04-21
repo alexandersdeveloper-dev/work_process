@@ -121,7 +121,7 @@ export default function AddStepForm({ processId }: { processId: string }) {
       <div className="form-row">
         <div className="form-group">
           <label>Tipo de etapa</label>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {adding ? (
               <>
                 <input
@@ -148,11 +148,11 @@ export default function AddStepForm({ processId }: { processId: string }) {
               </>
             ) : (
               <>
-                <select value={stepType} onChange={(e) => setStepType(e.target.value)} style={{ paddingRight: 36 }}>
+                <select value={stepType} onChange={(e) => setStepType(e.target.value)}>
                   {types.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
                 <button type="button" onClick={() => setAdding(true)} title="Adicionar novo tipo"
-                  style={{ position: 'absolute', right: 8, width: 20, height: 20, background: 'var(--panel-alt)', border: '1px solid var(--line)', borderRadius: 2, display: 'grid', placeItems: 'center', fontSize: 14, lineHeight: 1, color: 'var(--muted)', cursor: 'pointer', fontWeight: 500 }}>
+                  style={{ flexShrink: 0, width: 28, height: 28, background: 'var(--panel-alt)', border: '1px solid var(--line)', borderRadius: 4, display: 'grid', placeItems: 'center', fontSize: 16, lineHeight: 1, color: 'var(--muted)', cursor: 'pointer', fontWeight: 500 }}>
                   +
                 </button>
               </>

@@ -165,7 +165,7 @@ export default function ProcessForm({ process }: Props) {
       <div className="form-row">
         <div className="form-group">
           <label>Tipo *</label>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {addingType ? (
               <>
                 <input
@@ -192,7 +192,7 @@ export default function ProcessForm({ process }: Props) {
               </>
             ) : (
               <>
-                <select value={type} onChange={(e) => setType(e.target.value)} style={{ paddingRight: 36 }}>
+                <select value={type} onChange={(e) => setType(e.target.value)}>
                   {types.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
                 <button
@@ -200,11 +200,11 @@ export default function ProcessForm({ process }: Props) {
                   onClick={() => setAddingType(true)}
                   title="Adicionar novo tipo"
                   style={{
-                    position: 'absolute', right: 8,
-                    width: 20, height: 20,
+                    flexShrink: 0,
+                    width: 28, height: 28,
                     background: 'var(--panel-alt)', border: '1px solid var(--line)',
-                    borderRadius: 2, display: 'grid', placeItems: 'center',
-                    fontSize: 14, lineHeight: 1, color: 'var(--muted)',
+                    borderRadius: 4, display: 'grid', placeItems: 'center',
+                    fontSize: 16, lineHeight: 1, color: 'var(--muted)',
                     cursor: 'pointer', fontWeight: 500,
                   }}>
                   +
