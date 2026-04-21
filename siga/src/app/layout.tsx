@@ -1,8 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import Sidebar from '@/components/shell/Sidebar'
-import Topbar from '@/components/shell/Topbar'
 import { ShellProvider } from '@/components/shell/ShellProvider'
+import AppShell from '@/components/shell/AppShell'
 
 export const metadata: Metadata = {
   title: 'Work Process',
@@ -25,15 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <ShellProvider>
-          <div className="app">
-            <Sidebar />
-            <div className="main">
-              <Topbar />
-              <div className="content">
-                {children}
-              </div>
-            </div>
-          </div>
+          <AppShell>{children}</AppShell>
         </ShellProvider>
       </body>
     </html>
