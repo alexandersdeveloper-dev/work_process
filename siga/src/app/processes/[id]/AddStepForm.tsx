@@ -121,7 +121,7 @@ export default function AddStepForm({ processId }: { processId: string }) {
       <div className="form-row">
         <div className="form-group">
           <label>Tipo de etapa</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6 }}>
             {adding ? (
               <>
                 <input

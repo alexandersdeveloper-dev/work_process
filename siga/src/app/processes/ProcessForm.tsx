@@ -165,7 +165,7 @@ export default function ProcessForm({ process }: Props) {
       <div className="form-row">
         <div className="form-group">
           <label>Tipo *</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6 }}>
             {addingType ? (
               <>
                 <input
