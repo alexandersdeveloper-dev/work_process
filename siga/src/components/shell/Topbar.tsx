@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useShell } from './ShellProvider'
+import LogoutButton from './LogoutButton'
 
 export default function Topbar() {
   const pathname = usePathname()
@@ -70,6 +71,8 @@ export default function Topbar() {
           </svg>
         )}
       </button>
+
+      <LogoutButton />
     </header>
   )
 }
