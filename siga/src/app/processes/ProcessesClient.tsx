@@ -31,6 +31,7 @@ function formatDateLong(iso: string) {
 
 /* ---------- List view ---------- */
 function ListView({ processes }: { processes: Process[] }) {
+  const router = useRouter()
   if (processes.length === 0) {
     return <div className="empty"><p>Nenhum processo nesta categoria.</p></div>
   }
@@ -49,8 +50,8 @@ function ListView({ processes }: { processes: Process[] }) {
         </thead>
         <tbody>
           {processes.map((p) => (
-            <tr key={p.id}>
-              <td className="bold"><Link href={`/processes/${p.id}`}>{p.title}</Link></td>
+            <tr key={p.id} onClick={() => router.push(`/processes/${p.id}`)} style={{ cursor: 'pointer' }}>
+              <td className="bold">{p.title}</td>
               <td className="muted">{getProcessTypeLabel(p.type)}</td>
               <td><span className={`pill ${PRIORITY_KIND[p.priority]}`}>{PRIORITY_LABELS[p.priority]}</span></td>
               <td>
