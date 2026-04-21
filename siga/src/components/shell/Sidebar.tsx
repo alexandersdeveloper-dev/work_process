@@ -10,6 +10,7 @@ const nav = [
     items: [
       { href: '/', label: 'Dashboard', icon: HomeIcon },
       { href: '/processes', label: 'Processos', icon: LayersIcon },
+      { href: '/calendario', label: 'Calendário', icon: CalendarIcon },
     ],
   },
 ]
@@ -81,6 +82,15 @@ function LayersIcon() {
       <path d="M8 1.5L14 5l-6 3.5L2 5l6-3.5z" />
       <path d="M2 8.5l6 3.5 6-3.5" />
       <path d="M2 11.5l6 3.5 6-3.5" />
+    </svg>
+  )
+}
+
+function CalendarIcon() {
+  return (
+    <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="2" y="3" width="12" height="12" rx="1" />
+      <path d="M5 1v4M11 1v4M2 7h12" strokeLinecap="round" />
     </svg>
   )
 }

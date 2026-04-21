@@ -16,7 +16,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="main">
         <Topbar />
-        <div className="content">
+        <div className="content page-enter" key={pathname}>
           {children}
         </div>
       </div>
