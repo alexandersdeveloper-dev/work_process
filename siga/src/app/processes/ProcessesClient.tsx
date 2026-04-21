@@ -19,7 +19,6 @@ const TABS = [
 ]
 
 type View = 'list' | 'cards'
-type Counts = Record<string, number>
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
@@ -78,7 +77,6 @@ function CardsView({ processes }: { processes: Process[] }) {
     <div className="process-cards">
       {processes.map((p) => (
         <Link key={p.id} href={`/processes/${p.id}`} className="process-card">
-          {/* Header: status + priority */}
           <div className="pc-header">
             <span className={`pill ${STATUS_KIND[p.status]}`}>
               <span className="d" />{STATUS_LABELS[p.status]}
@@ -87,17 +85,11 @@ function CardsView({ processes }: { processes: Process[] }) {
               {PRIORITY_LABELS[p.priority]}
             </span>
           </div>
-
-          {/* Title + type */}
           <div className="pc-body">
             <div className="pc-title">{p.title}</div>
             <div className="pc-type">{getProcessTypeLabel(p.type)}</div>
-            {p.description && (
-              <div className="pc-desc">{p.description}</div>
-            )}
+            {p.description && <div className="pc-desc">{p.description}</div>}
           </div>
-
-          {/* Footer: responsible + deadline */}
           <div className="pc-footer">
             <div className="pc-meta">
               <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -121,16 +113,8 @@ function CardsView({ processes }: { processes: Process[] }) {
 }
 
 /* ---------- Main component ---------- */
-export default function ProcessesClient({
-  processes,
-  counts,
-  activeTab,
-}: {
-  processes: Process[]
-  counts: Counts
-  activeTab: string
-}) {
-  const router = useRouter()
+export default function ProcessesClient({ processes }: { processes: Process[] }) {
+  const [activeTab, setActiveTab] = useState('all')
   const [view, setView] = useState<View>('list')
 
   useEffect(() => {
@@ -143,16 +127,24 @@ export default function ProcessesClient({
     localStorage.setItem(LS_KEY, v)
   }
 
+  const counts = {
+    all: processes.length,
+    active: processes.filter((p) => p.status === 'active').length,
+    in_progress: processes.filter((p) => p.status === 'in_progress').length,
+    delayed: processes.filter((p) => p.status === 'delayed').length,
+    completed: processes.filter((p) => p.status === 'completed').length,
+  }
+
+  const visible = activeTab === 'all' ? processes : processes.filter((p) => p.status === activeTab)
+
   return (
     <>
-      {/* Page head */}
       <div className="page-head">
         <div>
           <h1>Processos</h1>
           <p className="sub">Todos os processos de trabalho da equipe</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {/* View toggle — desktop only */}
           <div className="view-toggle">
             <button
               className={`view-toggle-btn${view === 'list' ? ' active' : ''}`}
@@ -178,37 +170,33 @@ export default function ProcessesClient({
               </svg>
             </button>
           </div>
-
           <Link href="/processes/new">
             <button className="btn primary">+ Novo processo</button>
           </Link>
         </div>
       </div>
 
-      {/* Content card */}
       <div className="card">
-        {/* Tabs */}
         <div className="tabs">
           {TABS.map((tab) => (
             <button
               key={tab.key}
               className={`tab${activeTab === tab.key ? ' active' : ''}`}
-              onClick={() => router.push(`/processes?status=${tab.key}`)}
+              onClick={() => setActiveTab(tab.key)}
             >
               {tab.label}
-              <span className="c">{counts[tab.key] ?? 0}</span>
+              <span className="c">{counts[tab.key as keyof typeof counts] ?? 0}</span>
             </button>
           ))}
         </div>
 
-        {/* View */}
         {view === 'list'
-          ? <ListView processes={processes} />
-          : <CardsView processes={processes} />
+          ? <ListView processes={visible} />
+          : <CardsView processes={visible} />
         }
 
         <div className="pagination">
-          <span>{processes.length} processo{processes.length !== 1 ? 's' : ''}</span>
+          <span>{visible.length} processo{visible.length !== 1 ? 's' : ''}</span>
         </div>
       </div>
     </>

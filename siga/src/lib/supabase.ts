@@ -8,10 +8,14 @@ function envVars() {
   return { url, key }
 }
 
-/** Client Components */
+let _client: ReturnType<typeof createBrowserClient> | null = null
+
+/** Client Components — singleton por sessão de browser */
 export function createClient() {
+  if (_client) return _client
   const { url, key } = envVars()
-  return createBrowserClient(url, key)
+  _client = createBrowserClient(url, key)
+  return _client
 }
 
 /** Compatibilidade: export nomeado para imports legados */
