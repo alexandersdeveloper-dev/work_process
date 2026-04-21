@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIGA — Painel administrativo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="data.jsx"></script>
+  <script type="text/babel" src="icons.jsx"></script>
+  <script type="text/babel" src="shell.jsx"></script>
+  <script type="text/babel" src="dashboard.jsx"></script>
+  <script type="text/babel" src="processes.jsx"></script>
+  <script type="text/babel" src="detail.jsx"></script>
+
+  <script type="text/babel">
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "theme": "light",
+      "density": "balanced",
+      "accent": "terracotta",
+      "sidebar": "expanded"
+    }/*EDITMODE-END*/;
+
+    const ACCENT_MAP = {
+      terracotta: { a: "#9a3412", s: "#fbe9dd", aDark: "#fb923c", sDark: "#3a1e10" },
+      government: { a: "#1e3a8a", s: "#dbe4f5", aDark: "#60a5fa", sDark: "#16243f" },
+      moss:       { a: "#3f6212", s: "#e6eed3", aDark: "#a3e635", sDark: "#1e2a10" },
+      ink:        { a: "#1c1917", s: "#e7e5e0", aDark: "#f5f4ef", sDark: "#2a2621" },
+    };
+
+    function App() {
+      // Persist tweaks + route
+      const load = (k, d) => {
+        try { const v = localStorage.getItem("siga_" + k); return v || d; }
+        catch { return d; }
+      };
+      const save = (k, v) => { try { localStorage.setItem("siga_" + k, v); } catch {} };
+
+      const [theme,    setTheme]    = React.useState(() => load("theme", TWEAK_DEFAULTS.theme));
+      const [density,  setDensity]  = React.useState(() => load("density", TWEAK_DEFAULTS.density));
+      const [accent,   setAccent]   = React.useState(() => load("accent", TWEAK_DEFAULTS.accent));
+      const [sidebar,  setSidebar]  = React.useState(() => load("sidebar", TWEAK_DEFAULTS.sidebar));
+      const [route,    setRoute]    = React.useState(() => load("route", "dashboard"));
+      const [recordId, setRecordId] = React.useState(() => load("recordId", ""));
+      const [tweaksOpen, setTweaksOpen] = React.useState(false);
+
+      // Apply to DOM
+      React.useEffect(() => {
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.dataset.density = density;
+        document.documentElement.dataset.sidebar = sidebar;
+        const pal = ACCENT_MAP[accent] || ACCENT_MAP.terracotta;
+        const isDark = theme === "dark";
+        document.documentElement.style.setProperty("--accent", isDark ? pal.aDark : pal.a);
+        document.documentElement.style.setProperty("--accent-soft", isDark ? pal.sDark : pal.s);
+        save("theme", theme); save("density", density);
+        save("accent", accent); save("sidebar", sidebar);
+      }, [theme, density, accent, sidebar]);
+
+      React.useEffect(() => { save("route", route); save("recordId", recordId); }, [route, recordId]);
+
+      // Edit-mode hookup (host Tweaks toggle)
+      React.useEffect(() => {
+        const onMsg = (e) => {
+          const t = e.data && e.data.type;
+          if (t === "__activate_edit_mode") setTweaksOpen(true);
+          else if (t === "__deactivate_edit_mode") setTweaksOpen(false);
+        };
+        window.addEventListener("message", onMsg);
+        window.parent.postMessage({ type: "__edit_mode_available" }, "*");
+        return () => window.removeEventListener("message", onMsg);
+      }, []);
+
+      // Persist to host when tweaks change
+      const persistHost = React.useCallback((edits) => {
+        try { window.parent.postMessage({ type: "__edit_mode_set_keys", edits }, "*"); } catch {}
+      }, []);
+      const applyTheme   = v => { setTheme(v);   persistHost({ theme: v }); };
+      const applyDensity = v => { setDensity(v); persistHost({ density: v }); };
+      const applyAccent  = v => { setAccent(v);  persistHost({ accent: v }); };
+      const applySidebar = v => { setSidebar(v); persistHost({ sidebar: v }); };
+
+      const goToDetail = (id) => { setRecordId(id); setRoute("detail"); };
+      const back = () => setRoute("processos");
+
+      let screen = null;
+      if (route === "dashboard")      screen = <DashboardScreen goToDetail={goToDetail} />;
+      else if (route === "processos") screen = <ProcessesScreen goToDetail={goToDetail} />;
+      else if (route === "detail")    screen = <DetailScreen recordId={recordId} back={back} />;
+      else {
+        // placeholder for other routes
+        const labels = {
+          cidadaos: "Cidadãos", documentos: "Documentos", relatorios: "Relatórios",
+          unidades: "Unidades", protocolos: "Protocolos", arquivo: "Arquivo",
+          auditoria: "Auditoria", config: "Configurações"
+        };
+        screen = (
+          <>
+            <div className="page-head">
+              <div>
+                <h1 className="display">{labels[route] || "—"}</h1>
+                <div className="sub">Seção em construção neste protótipo.</div>
+              </div>
+            </div>
+            <div className="card">
+              <div className="card-b" style={{ padding: 60, textAlign: "center", color: "var(--muted)" }}>
+                <div style={{ fontSize: 13 }}>
+                  Este protótipo inclui: Painel geral, Processos e Detalhes do processo.
+                </div>
+                <button className="btn" style={{ marginTop: 16 }} onClick={() => setRoute("dashboard")}>
+                  Voltar ao painel
+                </button>
+              </div>
+            </div>
+          </>
+        );
+      }
+
+      const sidebarRoute = route === "detail" ? "processos" : route;
+
+      return (
+        <div className="app">
+          <Sidebar route={sidebarRoute} setRoute={setRoute} collapsed={sidebar === "collapsed"} />
+          <div className="main">
+            <Topbar
+              route={route}
+              setRoute={setRoute}
+              recordId={recordId}
+              onToggleSidebar={() => applySidebar(sidebar === "collapsed" ? "expanded" : "collapsed")}
+            />
+            <div className="content">
+              {screen}
+            </div>
+          </div>
+          <Tweaks
+            open={tweaksOpen}
+            setOpen={setTweaksOpen}
+            theme={theme} setTheme={applyTheme}
+            density={density} setDensity={applyDensity}
+            accent={accent} setAccent={applyAccent}
+            sidebar={sidebar} setSidebar={applySidebar}
+          />
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
