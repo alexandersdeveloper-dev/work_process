@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -116,11 +116,19 @@ function CardsView({ processes }: { processes: Process[] }) {
 export default function ProcessesClient({ processes }: { processes: Process[] }) {
   const [activeTab, setActiveTab] = useState('all')
   const [view, setView] = useState<View>('list')
+  const [indicator, setIndicator] = useState({ left: 0, width: 0 })
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   useEffect(() => {
     const saved = localStorage.getItem(LS_KEY) as View | null
     if (saved) setView(saved)
   }, [])
+
+  useEffect(() => {
+    const idx = TABS.findIndex((t) => t.key === activeTab)
+    const el = tabRefs.current[idx]
+    if (el) setIndicator({ left: el.offsetLeft, width: el.offsetWidth })
+  }, [activeTab])
 
   function toggleView(v: View) {
     setView(v)
@@ -177,10 +185,25 @@ export default function ProcessesClient({ processes }: { processes: Process[] })
       </div>
 
       <div className="card">
-        <div className="tabs">
-          {TABS.map((tab) => (
+        <div className="tabs" style={{ position: 'relative' }}>
+          {/* Indicador deslizante */}
+          {indicator.width > 0 && (
+            <span
+              style={{
+                position: 'absolute',
+                bottom: -1,
+                height: 2,
+                background: 'var(--ink)',
+                left: indicator.left,
+                width: indicator.width,
+                transition: 'left 0.22s cubic-bezier(.4,0,.2,1), width 0.22s cubic-bezier(.4,0,.2,1)',
+              }}
+            />
+          )}
+          {TABS.map((tab, i) => (
             <button
               key={tab.key}
+              ref={(el) => { tabRefs.current[i] = el }}
               className={`tab${activeTab === tab.key ? ' active' : ''}`}
               onClick={() => setActiveTab(tab.key)}
             >

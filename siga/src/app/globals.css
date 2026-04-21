@@ -495,7 +495,7 @@ table.t {
   border: 1px solid var(--line);
 }
 .tab:hover { color: var(--ink); }
-.tab.active { color: var(--ink); border-bottom-color: var(--ink); font-weight: 500; }
+.tab.active { color: var(--ink); font-weight: 500; }
 .tab.active .c { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 
 .filters {
