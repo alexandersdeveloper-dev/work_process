@@ -6,8 +6,9 @@ import Link from 'next/link'
 import { STATUS_LABELS, STATUS_KIND, getProcessTypeLabel, PRIORITY_LABELS, PRIORITY_KIND } from '@/types'
 import type { Process, Step } from '@/types'
 import StepTimeline from './StepTimeline'
-import AddStepForm from './AddStepForm'
+import AddStepModal from './AddStepModal'
 import DeleteProcessButton from './DeleteProcessButton'
+import CollapsibleInfo from './CollapsibleInfo'
 
 async function getProcess(id: string): Promise<Process | null> {
   const { data } = await supabase.from('processes').select('*').eq('id', id).single()
@@ -33,6 +34,15 @@ export default async function ProcessDetailPage({ params }: { params: Promise<{ 
 
   if (!process) notFound()
 
+  const fields = [
+    { label: 'Tipo',         value: getProcessTypeLabel(process.type) },
+    { label: 'Responsável',  value: process.responsible },
+    ...(process.portal_section ? [{ label: 'Seção do portal', value: process.portal_section }] : []),
+    { label: 'Prazo',        value: process.deadline ? formatDate(process.deadline) : '—' },
+    { label: 'Criado em',    value: formatDate(process.created_at), mono: true },
+    { label: 'Atualizado',   value: formatDate(process.updated_at), mono: true },
+  ]
+
   return (
     <>
       <div className="page-head">
@@ -50,6 +60,7 @@ export default async function ProcessDetailPage({ params }: { params: Promise<{ 
           <p className="sub">{getProcessTypeLabel(process.type)} · Responsável: {process.responsible}</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
+          <AddStepModal processId={process.id} />
           <Link href={`/processes/${process.id}/edit`}>
             <button className="btn">Editar</button>
           </Link>
@@ -57,67 +68,16 @@ export default async function ProcessDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
-      <div className="detail-grid">
-        {/* Coluna esquerda */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-          <div className="card">
-            <div className="card-h"><h3>Informações</h3></div>
-            <div className="card-b">
-              {process.description && (
-                <p style={{ fontSize: 13.5, color: 'var(--ink-2)', marginBottom: 20, lineHeight: 1.6 }}>
-                  {process.description}
-                </p>
-              )}
-              <div className="field">
-                <span className="k">Tipo</span>
-                <span className="v">{getProcessTypeLabel(process.type)}</span>
-              </div>
-              <div className="field">
-                <span className="k">Responsável</span>
-                <span className="v">{process.responsible}</span>
-              </div>
-              {process.portal_section && (
-                <div className="field">
-                  <span className="k">Seção do portal</span>
-                  <span className="v">{process.portal_section}</span>
-                </div>
-              )}
-              <div className="field">
-                <span className="k">Prazo</span>
-                <span className="v">{process.deadline ? formatDate(process.deadline) : '—'}</span>
-              </div>
-              <div className="field">
-                <span className="k">Criado em</span>
-                <span className="v mono">{formatDate(process.created_at)}</span>
-              </div>
-              <div className="field">
-                <span className="k">Atualizado</span>
-                <span className="v mono">{formatDate(process.updated_at)}</span>
-              </div>
-            </div>
-          </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+        <CollapsibleInfo description={process.description} fields={fields} />
 
-          <div className="card">
-            <div className="card-h">
-              <h3>Adicionar etapa</h3>
-              <span className="sub">Registre o próximo passo desta trilha</span>
-            </div>
-            <div className="card-b">
-              <AddStepForm processId={process.id} />
-            </div>
+        <div className="card">
+          <div className="card-h">
+            <h3>Trilha de execução</h3>
+            <span className="sub">{steps.length} etapa{steps.length !== 1 ? 's' : ''}</span>
           </div>
-        </div>
-
-        {/* Coluna direita */}
-        <div>
-          <div className="card">
-            <div className="card-h">
-              <h3>Trilha de execução</h3>
-              <span className="sub">{steps.length} etapa{steps.length !== 1 ? 's' : ''}</span>
-            </div>
-            <div className="card-b">
-              <StepTimeline steps={steps} />
-            </div>
+          <div className="card-b">
+            <StepTimeline steps={steps} />
           </div>
         </div>
       </div>

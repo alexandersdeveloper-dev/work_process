@@ -32,7 +32,7 @@ function saveTypes(types: string[]) {
 }
 
 
-export default function AddStepForm({ processId }: { processId: string }) {
+export default function AddStepForm({ processId, onSuccess }: { processId: string; onSuccess?: () => void }) {
   const router = useRouter()
   const [types, setTypes] = useState<string[]>(DEFAULT_TYPES)
   const [stepType, setStepType] = useState('Nota')
@@ -105,6 +105,7 @@ export default function AddStepForm({ processId }: { processId: string }) {
     setDatetime('')
     setLoading(false)
     router.refresh()
+    onSuccess?.()
   }
 
   return (
