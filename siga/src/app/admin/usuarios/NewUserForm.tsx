@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ROLE_LABELS } from '@/lib/auth-guard'
+import { validatePassword } from '@/lib/password-policy'
 import type { UserRole } from '@/types'
 
 const ROLES: UserRole[] = ['admin', 'chefe', 'servidor']
@@ -24,35 +25,47 @@ export default function NewUserForm() {
       setError('Preencha todos os campos obrigatórios.')
       return
     }
-    if (password.length < 6) {
-      setError('A senha deve ter pelo menos 6 caracteres.')
+    const pwCheck = validatePassword(password)
+    if (!pwCheck.valid) {
+      setError(pwCheck.error ?? 'Senha inválida.')
       return
     }
     setLoading(true)
     setError('')
 
-    const res = await fetch('/api/admin/users', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: email.trim(),
-        password,
-        full_name: fullName.trim(),
-        role,
-        cargo: cargo.trim() || null,
-        force_password_change: forceChange,
-      }),
-    })
-    const json = await res.json() as { error?: string; id?: string }
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+          full_name: fullName.trim(),
+          role,
+          cargo: cargo.trim() || null,
+          force_password_change: forceChange,
+        }),
+      })
 
-    if (!res.ok) {
-      setError(json.error ?? 'Erro ao criar usuário.')
+      let json: { error?: string; id?: string } = {}
+      try {
+        json = await res.json()
+      } catch {
+        // resposta não é JSON (ex: erro 500 do servidor)
+      }
+
+      if (!res.ok) {
+        setError(json.error ?? 'Erro ao criar usuário. Tente novamente.')
+        setLoading(false)
+        return
+      }
+
+      router.push('/admin/usuarios')
+      router.refresh()
+    } catch {
+      setError('Falha na conexão. Verifique sua rede e tente novamente.')
       setLoading(false)
-      return
     }
-
-    router.push('/admin/usuarios')
-    router.refresh()
   }
 
   return (
@@ -80,7 +93,7 @@ export default function NewUserForm() {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Mínimo 6 caracteres"
+          placeholder="Mín. 8 chars, 1 maiúscula, 1 número"
         />
       </div>
       <div className="form-group">

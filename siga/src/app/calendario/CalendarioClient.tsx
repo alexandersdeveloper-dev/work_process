@@ -4,7 +4,9 @@ import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@/lib/user-context'
 import { canManageFolgas } from '@/lib/auth-guard'
+import { createClient } from '@/lib/supabase'
 import AusenciaDrawer from './AusenciaDrawer'
+import EditFolgaModal from './EditFolgaModal'
 import type { Folga } from '@/types'
 
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
@@ -37,7 +39,24 @@ function folgasForDay(folgas: Folga[], key: string, currentUserId?: string): Fol
 }
 
 /* ---------- Popup de visualização ---------- */
-function DayPopup({ date, folgas, onClose }: { date: string; folgas: Folga[]; onClose: () => void }) {
+function DayPopup({ date, folgas, canManage, onClose, onEdit, onDelete }: {
+  date: string
+  folgas: Folga[]
+  canManage: boolean
+  onClose: () => void
+  onEdit: (f: Folga) => void
+  onDelete: (f: Folga) => void
+}) {
+  const [confirmId, setConfirmId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  async function handleDelete(f: Folga) {
+    setDeletingId(f.id)
+    await onDelete(f)
+    setDeletingId(null)
+    setConfirmId(null)
+  }
+
   return (
     <>
       <div
@@ -48,7 +67,7 @@ function DayPopup({ date, folgas, onClose }: { date: string; folgas: Folga[]; on
         position: 'fixed', zIndex: 101,
         top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
         background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 8,
-        width: '100%', maxWidth: 380, padding: 20,
+        width: '100%', maxWidth: 400, padding: 20,
         boxShadow: '0 20px 48px rgba(0,0,0,0.18)',
         animation: 'modal-panel-in 0.2s cubic-bezier(.34,1.56,.64,1) both',
       }}>
@@ -70,16 +89,65 @@ function DayPopup({ date, folgas, onClose }: { date: string; folgas: Folga[]; on
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontWeight: 500, fontSize: 13 }}>{f.profile?.full_name ?? '—'}</span>
-                <span className={`pill ${f.type === 'ferias' ? 'success' : 'warning'}`} style={{ fontSize: 10, flexShrink: 0 }}>
-                  {f.type === 'ferias' ? 'Férias' : 'Folga'}
-                </span>
-              </div>
-              {f.type === 'ferias' && f.end_date && (
-                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>
-                  {fmtShort(f.date)} → {fmtShort(f.end_date)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  <span className={`pill ${f.type === 'ferias' ? 'success' : 'warning'}`} style={{ fontSize: 10 }}>
+                    {f.type === 'ferias' ? 'Férias' : 'Folga'}
+                  </span>
+                  {canManage && confirmId !== f.id && (
+                    <>
+                      <button
+                        title="Editar"
+                        onClick={() => { onEdit(f); onClose() }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: '2px 4px', borderRadius: 4, display: 'flex', alignItems: 'center' }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                          <path d="M11 2l3 3-8 8H3v-3L11 2z" />
+                        </svg>
+                      </button>
+                      <button
+                        title="Excluir"
+                        onClick={() => setConfirmId(f.id)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '2px 4px', borderRadius: 4, display: 'flex', alignItems: 'center' }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                          <path d="M2 4h12M5 4V2h6v2M6 7v5M10 7v5M3 4l1 9h8l1-9" />
+                        </svg>
+                      </button>
+                    </>
+                  )}
                 </div>
+              </div>
+
+              {/* Confirmação inline de exclusão */}
+              {confirmId === f.id ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '6px 8px', background: 'var(--panel-alt)', borderRadius: 4 }}>
+                  <span style={{ fontSize: 12, color: 'var(--ink-2)', flex: 1 }}>Excluir este registro?</span>
+                  <button
+                    className="btn sm"
+                    style={{ background: 'var(--danger)', color: '#fff', border: 'none', fontSize: 11 }}
+                    disabled={deletingId === f.id}
+                    onClick={() => handleDelete(f)}
+                  >
+                    {deletingId === f.id ? '…' : 'Excluir'}
+                  </button>
+                  <button
+                    className="btn ghost sm"
+                    style={{ fontSize: 11 }}
+                    onClick={() => setConfirmId(null)}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {f.type === 'ferias' && f.end_date && (
+                    <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>
+                      {fmtShort(f.date)} → {fmtShort(f.end_date)}
+                    </div>
+                  )}
+                  {f.description && <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{f.description}</div>}
+                </>
               )}
-              {f.description && <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{f.description}</div>}
             </div>
           ))}
         </div>
@@ -243,6 +311,14 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
     router.refresh()
   }
 
+  const [editingFolga, setEditingFolga] = useState<Folga | null>(null)
+
+  async function handleDeleteFolga(f: Folga) {
+    const supabase = createClient()
+    await supabase.from('folgas').delete().eq('id', f.id)
+    router.refresh()
+  }
+
   const closePopup = useCallback(() => setPopupDay(null), [])
 
   return (
@@ -390,8 +466,19 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
       {popupDay && !selectionMode && (
         <DayPopup
           date={popupDay}
-          folgas={folgasForDay(folgas, popupDay)}
+          folgas={folgasForDay(folgas, popupDay, profile?.id)}
+          canManage={canAdd}
           onClose={closePopup}
+          onEdit={(f) => { setEditingFolga(f); setPopupDay(null) }}
+          onDelete={handleDeleteFolga}
+        />
+      )}
+
+      {editingFolga && (
+        <EditFolgaModal
+          folga={editingFolga}
+          onClose={() => setEditingFolga(null)}
+          onSaved={() => { setEditingFolga(null); router.refresh() }}
         />
       )}
     </>
