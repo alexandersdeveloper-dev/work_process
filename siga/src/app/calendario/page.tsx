@@ -8,9 +8,9 @@ async function getFolgas(): Promise<Folga[]> {
   const supabase = await createServerSupabaseClient()
   const { data } = await supabase
     .from('folgas')
-    .select('*, profile:profiles!folgas_user_id_fkey(*)')
+    .select('id, user_id, date, end_date, type, description, registered_by, created_at, profile:profiles!folgas_user_id_fkey(id, full_name, cargo)')
     .order('date', { ascending: true })
-  return (data as Folga[]) ?? []
+  return (data as unknown as Folga[]) ?? []
 }
 
 export default async function CalendarioPage() {

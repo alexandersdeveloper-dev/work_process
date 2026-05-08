@@ -15,7 +15,7 @@ export default async function UnidadeDashboardPage() {
   const [processesRes, profilesRes] = await Promise.all([
     supabase
       .from('processes')
-      .select('*, owner:profiles!owner_id(id, full_name)')
+      .select('id, title, type, status, priority, responsible, deadline, description, portal_section, owner_id, created_at, updated_at, owner:profiles!owner_id(id, full_name)')
       .order('updated_at', { ascending: false }),
     supabase
       .from('profiles')
@@ -24,7 +24,7 @@ export default async function UnidadeDashboardPage() {
       .order('full_name'),
   ])
 
-  const all = (processesRes.data as (Process & { owner: Pick<Profile, 'id' | 'full_name'> | null })[]) ?? []
+  const all = (processesRes.data as unknown as (Process & { owner: Pick<Profile, 'id' | 'full_name'> | null })[]) ?? []
   const profiles = (profilesRes.data as Pick<Profile, 'id' | 'full_name' | 'role'>[]) ?? []
 
   const stats = {

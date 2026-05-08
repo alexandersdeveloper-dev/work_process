@@ -11,7 +11,7 @@ async function getMyProcesses(): Promise<Process[]> {
 
   const { data } = await supabase
     .from('processes')
-    .select('*')
+    .select('id, title, type, priority, status, responsible, deadline, description, portal_section, created_at, updated_at, owner_id')
     .eq('owner_id', user.id)
     .order('created_at', { ascending: false })
 

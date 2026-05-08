@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@/lib/user-context'
 import { canManageFolgas } from '@/lib/auth-guard'
@@ -311,6 +311,23 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
     router.refresh()
   }
 
+  // Pre-compute a date→Folga[] map once per folgas change instead of filtering 42× per render
+  const folgasByDate = useMemo(() => {
+    const map = new Map<string, Folga[]>()
+    for (const f of folgas) {
+      const endMs = new Date((f.end_date ?? f.date) + 'T12:00:00').getTime()
+      let curMs = new Date(f.date + 'T12:00:00').getTime()
+      while (curMs <= endMs) {
+        const key = new Date(curMs).toISOString().slice(0, 10)
+        const arr = map.get(key)
+        if (arr) arr.push(f)
+        else map.set(key, [f])
+        curMs += 86400000
+      }
+    }
+    return map
+  }, [folgas])
+
   const [editingFolga, setEditingFolga] = useState<Folga | null>(null)
 
   async function handleDeleteFolga(f: Folga) {
@@ -368,7 +385,10 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
                 {cells.map((day, i) => {
                   if (!day) return <div key={i} />
                   const key = isoDate(viewYear, viewMonth, day)
-                  const dayFolgas = folgasForDay(folgas, key, profile?.id)
+                  const rawFolgas = folgasByDate.get(key) ?? []
+                  const dayFolgas = rawFolgas.length > 1 && profile?.id
+                    ? [...rawFolgas].sort((a, b) => (a.user_id === profile.id ? -1 : b.user_id === profile.id ? 1 : 0))
+                    : rawFolgas
                   const hasFolga = dayFolgas.length > 0
                   const isT = todayKey === key
                   const isSelected = selectedDays.includes(key)
@@ -466,7 +486,12 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
       {popupDay && !selectionMode && (
         <DayPopup
           date={popupDay}
-          folgas={folgasForDay(folgas, popupDay, profile?.id)}
+          folgas={(() => {
+            const raw = folgasByDate.get(popupDay) ?? []
+            return raw.length > 1 && profile?.id
+              ? [...raw].sort((a, b) => (a.user_id === profile.id ? -1 : b.user_id === profile.id ? 1 : 0))
+              : raw
+          })()}
           canManage={canAdd}
           onClose={closePopup}
           onEdit={(f) => { setEditingFolga(f); setPopupDay(null) }}

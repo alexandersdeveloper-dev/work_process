@@ -6,42 +6,6 @@ import { STATUS_LABELS, STATUS_KIND, getProcessTypeLabel } from '@/types'
 import type { Process } from '@/types'
 import DeadlineNotifier from './DeadlineNotifier'
 
-async function getPersonalFilters(uid: string) {
-  const supabase = await createServerSupabaseClient()
-  const { data: shared } = await supabase
-    .from('process_shares')
-    .select('process_id')
-    .eq('shared_with_user_id', uid)
-  const sharedIds = (shared ?? []).map((s: { process_id: string }) => s.process_id)
-  const filters = [`owner_id.eq.${uid}`, ...(sharedIds.length > 0 ? [`id.in.(${sharedIds.join(',')})`] : [])]
-  return filters
-}
-
-async function getStats(uid: string) {
-  const supabase = await createServerSupabaseClient()
-  const filters = await getPersonalFilters(uid)
-  const { data } = await supabase.from('processes').select('status').or(filters.join(','))
-  if (!data) return { total: 0, active: 0, in_progress: 0, delayed: 0 }
-  return {
-    total: data.length,
-    active: data.filter((p: { status: string }) => p.status === 'active').length,
-    in_progress: data.filter((p: { status: string }) => p.status === 'in_progress').length,
-    delayed: data.filter((p: { status: string }) => p.status === 'delayed').length,
-  }
-}
-
-async function getRecent(uid: string): Promise<Process[]> {
-  const supabase = await createServerSupabaseClient()
-  const filters = await getPersonalFilters(uid)
-  const { data } = await supabase
-    .from('processes')
-    .select('*')
-    .or(filters.join(','))
-    .order('updated_at', { ascending: false })
-    .limit(8)
-  return (data as Process[]) ?? []
-}
-
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
 }
@@ -51,11 +15,34 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   const uid = user?.id ?? ''
 
-  const [stats, recent] = await Promise.all([getStats(uid), getRecent(uid)])
+  // 2 queries total instead of 4: get shared ids, then fetch all processes once
+  const { data: shared } = await supabase
+    .from('process_shares')
+    .select('process_id')
+    .eq('shared_with_user_id', uid)
+
+  const sharedIds = (shared ?? []).map((s: { process_id: string }) => s.process_id)
+  const filters = [`owner_id.eq.${uid}`, ...(sharedIds.length > 0 ? [`id.in.(${sharedIds.join(',')})`] : [])]
+
+  const { data } = await supabase
+    .from('processes')
+    .select('id, title, type, status, priority, responsible, deadline, updated_at, owner_id')
+    .or(filters.join(','))
+    .order('updated_at', { ascending: false })
+
+  const all = (data ?? []) as Process[]
+
+  const stats = {
+    total: all.length,
+    active: all.filter((p) => p.status === 'active').length,
+    in_progress: all.filter((p) => p.status === 'in_progress').length,
+    delayed: all.filter((p) => p.status === 'delayed').length,
+  }
+
+  const recent = all.slice(0, 8)
 
   return (
     <>
-      {/* Notificador de deadline (client component, silent) */}
       {uid && <DeadlineNotifier userId={uid} />}
 
       <div className="page-head">

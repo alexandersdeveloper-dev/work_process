@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useTransition } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -115,10 +115,6 @@ function ComunicadoCard({ comunicado, canManage, onDelete }: {
 }
 
 function NovoComunicadoModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => { setMounted(true) }, [])
-
   const close = useCallback(() => onClose(), [onClose])
 
   useEffect(() => {
@@ -130,8 +126,6 @@ function NovoComunicadoModal({ onClose, onSuccess }: { onClose: () => void; onSu
       document.removeEventListener('keydown', onKey)
     }
   }, [close])
-
-  if (!mounted) return null
 
   return createPortal(
     <div
@@ -179,13 +173,15 @@ function NovoComunicadoModal({ onClose, onSuccess }: { onClose: () => void; onSu
 export default function ComunicadosClient({ comunicados: initial }: { comunicados: Comunicado[] }) {
   const [list, setList] = useState(initial)
   const [showModal, setShowModal] = useState(false)
+  const [, startTransition] = useTransition()
   const { profile } = useUser()
   const router = useRouter()
   const canManage = canPublish(profile?.role)
 
   function handleDelete(id: string) {
     setList((prev) => prev.filter((c) => c.id !== id))
-    router.refresh()
+    // refresh in background — UI already updated optimistically
+    startTransition(() => router.refresh())
   }
 
   function handleSuccess() {

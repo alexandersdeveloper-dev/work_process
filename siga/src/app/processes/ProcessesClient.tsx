@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useMemo, useLayoutEffect, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -31,6 +31,7 @@ function formatDateLong(iso: string) {
 /* ---------- List view ---------- */
 function ListView({ processes }: { processes: Process[] }) {
   const router = useRouter()
+  const [, startTransition] = useTransition()
   if (processes.length === 0) {
     return <div className="empty"><p>Nenhum processo nesta categoria.</p></div>
   }
@@ -49,7 +50,7 @@ function ListView({ processes }: { processes: Process[] }) {
         </thead>
         <tbody>
           {processes.map((p) => (
-            <tr key={p.id} onClick={() => router.push(`/processes/${p.id}`)} style={{ cursor: 'pointer' }}>
+            <tr key={p.id} onClick={() => startTransition(() => router.push(`/processes/${p.id}`))} style={{ cursor: 'pointer' }}>
               <td className="bold">{p.title}</td>
               <td className="muted">{getProcessTypeLabel(p.type)}</td>
               <td><span className={`pill ${PRIORITY_KIND[p.priority]}`}>{PRIORITY_LABELS[p.priority]}</span></td>
@@ -127,12 +128,12 @@ export default function ProcessesClient({
   const [indicator, setIndicator] = useState({ left: 0, width: 0 })
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
 
-  useEffect(() => {
-    const saved = localStorage.getItem(LS_KEY) as View | null
+  useState(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem(LS_KEY) as View | null : null
     if (saved) setView(saved)
-  }, [])
+  })
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const idx = TABS.findIndex((t) => t.key === activeTab)
     const el = tabRefs.current[idx]
     if (el) setIndicator({ left: el.offsetLeft, width: el.offsetWidth })
@@ -143,15 +144,18 @@ export default function ProcessesClient({
     localStorage.setItem(LS_KEY, v)
   }
 
-  const counts = {
+  const counts = useMemo(() => ({
     all: processes.length,
     active: processes.filter((p) => p.status === 'active').length,
     in_progress: processes.filter((p) => p.status === 'in_progress').length,
     delayed: processes.filter((p) => p.status === 'delayed').length,
     completed: processes.filter((p) => p.status === 'completed').length,
-  }
+  }), [processes])
 
-  const visible = activeTab === 'all' ? processes : processes.filter((p) => p.status === activeTab)
+  const visible = useMemo(
+    () => activeTab === 'all' ? processes : processes.filter((p) => p.status === activeTab),
+    [processes, activeTab]
+  )
 
   return (
     <>
@@ -194,7 +198,6 @@ export default function ProcessesClient({
 
       <div className="card">
         <div className="tabs" style={{ position: 'relative' }}>
-          {/* Indicador deslizante */}
           {indicator.width > 0 && (
             <span
               style={{
