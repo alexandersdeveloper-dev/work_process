@@ -182,42 +182,59 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
   }
 
   function handlePrint() {
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
     const firstDay = `${viewYear}-${pad(viewMonth + 1)}-01`
-    const lastDay = `${viewYear}-${pad(viewMonth + 1)}-${pad(new Date(viewYear, viewMonth + 1, 0).getDate())}`
+    const lastDay = `${viewYear}-${pad(viewMonth + 1)}-${pad(daysInMonth)}`
 
     const monthFolgas = folgas
       .filter((f) => f.date <= lastDay && (f.end_date ?? f.date) >= firstDay)
-      .sort((a, b) => a.date.localeCompare(b.date) || (a.profile?.full_name ?? '').localeCompare(b.profile?.full_name ?? ''))
 
-    const countFolga = monthFolgas.filter((f) => f.type === 'folga').length
-    const countFerias = monthFolgas.filter((f) => f.type === 'ferias').length
+    // Agrupar por dia: uma linha por dia com ausências
+    type DayEntry = { date: string; items: typeof monthFolgas }
+    const dayEntries: DayEntry[] = []
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = `${viewYear}-${pad(viewMonth + 1)}-${pad(d)}`
+      const dayFolgas = monthFolgas
+        .filter((f) => f.date <= key && key <= (f.end_date ?? f.date))
+        .sort((a, b) => (a.profile?.full_name ?? '').localeCompare(b.profile?.full_name ?? ''))
+      if (dayFolgas.length > 0) dayEntries.push({ date: key, items: dayFolgas })
+    }
 
-    const rows = monthFolgas.map((f) => {
-      const end = f.end_date ?? f.date
-      const dateStr = end !== f.date ? `${fmtShort(f.date)} → ${fmtShort(end)}` : fmtShort(f.date)
-      const isFerias = f.type === 'ferias'
-      const borderColor = isFerias ? '#16a34a' : '#d97706'
-      const badgeBg = isFerias ? '#dcfce7' : '#fef3c7'
-      const badgeColor = isFerias ? '#15803d' : '#b45309'
-      const typeLabel = isFerias ? 'Férias' : 'Folga'
-      const cargo = (f.profile as { full_name?: string; cargo?: string | null } | undefined)?.cargo
+    // Contadores únicos de pessoas (não de dias)
+    const uniqueFolga = new Set(monthFolgas.filter((f) => f.type === 'folga').map((f) => f.user_id)).size
+    const uniqueFerias = new Set(monthFolgas.filter((f) => f.type === 'ferias').map((f) => f.user_id)).size
+
+    function fmtDateRow(iso: string) {
+      const [y, m, dd] = iso.split('-').map(Number)
+      return new Date(y, m - 1, dd).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })
+    }
+
+    const rows = dayEntries.map(({ date, items }) => {
+      const dateLabel = fmtDateRow(date)
+      const people = items.map((f) => {
+        const isFerias = f.type === 'ferias'
+        const badgeBg = isFerias ? '#dcfce7' : '#fef3c7'
+        const badgeColor = isFerias ? '#15803d' : '#b45309'
+        const typeLabel = isFerias ? 'Fér.' : 'Folga'
+        const note = f.description ? ` <span style="color:#9ca3af;font-size:11px">(${f.description})</span>` : ''
+        return `<span style="display:inline-flex;align-items:center;gap:5px;margin:2px 4px 2px 0;white-space:nowrap">
+          <span style="font-weight:600;color:#111;font-size:13px">${f.profile?.full_name ?? '—'}</span>
+          <span style="display:inline-block;padding:2px 7px;border-radius:20px;background:${badgeBg};color:${badgeColor};font-size:10px;font-weight:600">${typeLabel}</span>${note}
+        </span>`
+      }).join('<span style="color:#d1d5db;margin:0 2px">·</span>')
+
       return `<tr>
-        <td style="border-left:3px solid ${borderColor};padding-left:14px">
-          <div style="font-weight:600;color:#111;font-size:13px">${f.profile?.full_name ?? '—'}</div>
-          ${cargo ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">${cargo}</div>` : ''}
-        </td>
-        <td><span style="display:inline-block;padding:3px 10px;border-radius:20px;background:${badgeBg};color:${badgeColor};font-size:11px;font-weight:600;letter-spacing:.03em">${typeLabel}</span></td>
-        <td style="color:#374151;font-size:13px">${dateStr}</td>
-        <td style="color:#6b7280;font-size:12px">${f.description ?? ''}</td>
+        <td style="white-space:nowrap;font-size:13px;color:#374151;font-weight:500;width:130px">${dateLabel}</td>
+        <td style="font-size:13px">${people}</td>
       </tr>`
     }).join('')
 
-    const emptyMsg = '<tr><td colspan="4" style="color:#9ca3af;font-style:italic;text-align:center;padding:32px 12px">Nenhuma ausência registrada neste mês.</td></tr>'
+    const emptyMsg = '<tr><td colspan="2" style="color:#9ca3af;font-style:italic;text-align:center;padding:32px 12px">Nenhuma ausência registrada neste mês.</td></tr>'
     const generatedAt = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
 
     const summaryItems = [
-      countFolga > 0 ? `<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#d97706;display:inline-block"></span>${countFolga} folga${countFolga !== 1 ? 's' : ''}</span>` : '',
-      countFerias > 0 ? `<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#16a34a;display:inline-block"></span>${countFerias} férias</span>` : '',
+      uniqueFolga > 0 ? `<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#d97706;display:inline-block"></span>${uniqueFolga} servidor${uniqueFolga !== 1 ? 'es' : ''} com folga</span>` : '',
+      uniqueFerias > 0 ? `<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#16a34a;display:inline-block"></span>${uniqueFerias} servidor${uniqueFerias !== 1 ? 'es' : ''} em férias</span>` : '',
     ].filter(Boolean).join('<span style="margin:0 8px;color:#d1d5db">·</span>')
 
     const html = `<!DOCTYPE html><html lang="pt-BR"><head>
@@ -230,19 +247,20 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
   .header-brand { font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; opacity: .55; margin-bottom: 6px }
   .header-title { font-size: 22px; font-weight: 700; margin-bottom: 4px }
   .header-meta { font-size: 12px; opacity: .55 }
-  .body { padding: 32px 40px 48px }
-  .summary { display: flex; gap: 12px; align-items: center; margin-bottom: 28px; font-size: 13px; color: #374151; flex-wrap: wrap }
+  .body { padding: 28px 40px 48px }
+  .summary { display: flex; gap: 12px; align-items: center; margin-bottom: 24px; font-size: 13px; color: #374151; flex-wrap: wrap }
   .summary-total { font-weight: 700; font-size: 15px; color: #111; margin-right: 4px }
   table { width: 100%; border-collapse: collapse }
   thead tr { border-bottom: 2px solid #e5e7eb }
-  th { text-align: left; padding: 10px 14px; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; color: #6b7280 }
-  td { padding: 16px 14px; border-bottom: 1px solid #f3f4f6; vertical-align: middle }
+  th { text-align: left; padding: 8px 14px; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; color: #6b7280 }
+  td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; vertical-align: middle }
   tr:last-child td { border-bottom: none }
-  .footer { padding: 0 40px 32px; font-size: 11px; color: #9ca3af; border-top: 1px solid #f3f4f6; padding-top: 16px; margin-top: 8px }
+  .footer { padding: 16px 40px 32px; font-size: 11px; color: #9ca3af; border-top: 1px solid #f3f4f6; margin-top: 8px }
   @media print {
-    .header { -webkit-print-color-adjust: exact; print-color-adjust: exact; border-bottom: 3px solid #2C3947 }
-    .body { padding: 24px 32px 40px }
-    .header { padding: 22px 32px 20px }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact }
+    .header { border-bottom: 3px solid #2C3947 }
+    .body { padding: 20px 32px 32px }
+    .header { padding: 20px 32px 18px }
   }
 </style>
 </head><body>
@@ -252,10 +270,10 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
   <div class="header-meta">Gerado em ${generatedAt}</div>
 </div>
 <div class="body">
-  ${monthFolgas.length > 0 ? `<div class="summary"><span class="summary-total">${monthFolgas.length} registro${monthFolgas.length !== 1 ? 's' : ''}</span>${summaryItems}</div>` : ''}
+  ${dayEntries.length > 0 ? `<div class="summary"><span class="summary-total">${dayEntries.length} dia${dayEntries.length !== 1 ? 's' : ''} com ausência</span>${summaryItems}</div>` : ''}
   <table>
-    <thead><tr><th>Servidor</th><th>Tipo</th><th>Período</th><th>Observação</th></tr></thead>
-    <tbody>${monthFolgas.length > 0 ? rows : emptyMsg}</tbody>
+    <thead><tr><th style="width:130px">Data</th><th>Ausências</th></tr></thead>
+    <tbody>${dayEntries.length > 0 ? rows : emptyMsg}</tbody>
   </table>
 </div>
 <div class="footer">Work Process / SIGA · Relatório gerado automaticamente</div>

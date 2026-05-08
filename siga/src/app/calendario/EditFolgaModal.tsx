@@ -32,7 +32,7 @@ export default function EditFolgaModal({ folga, onClose, onSaved }: Props) {
     setLoading(true)
     setError('')
 
-    const { error: err } = await supabase
+    const { data: updated, error: err } = await supabase
       .from('folgas')
       .update({
         type,
@@ -41,8 +41,14 @@ export default function EditFolgaModal({ folga, onClose, onSaved }: Props) {
         description: description.trim() || null,
       })
       .eq('id', folga.id)
+      .select()
 
     if (err) { setError(err.message); setLoading(false); return }
+    if (!updated || updated.length === 0) {
+      setError('Sem permissão para editar este registro.')
+      setLoading(false)
+      return
+    }
     setLoading(false)
     onSaved()
   }
