@@ -8,7 +8,7 @@ import type { UserRole } from '@/types'
 
 const ROLES: UserRole[] = ['admin', 'chefe', 'servidor']
 
-export default function NewUserForm() {
+export default function NewUserForm({ onSuccess, onCancel }: { onSuccess?: () => void; onCancel?: () => void } = {}) {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -60,8 +60,12 @@ export default function NewUserForm() {
         return
       }
 
-      router.push('/admin/usuarios')
-      router.refresh()
+      if (onSuccess) {
+        onSuccess()
+      } else {
+        router.push('/admin/usuarios')
+        router.refresh()
+      }
     } catch {
       setError('Falha na conexão. Verifique sua rede e tente novamente.')
       setLoading(false)
@@ -125,7 +129,7 @@ export default function NewUserForm() {
         <button type="submit" className="btn primary" disabled={loading}>
           {loading ? 'Criando…' : 'Criar usuário'}
         </button>
-        <button type="button" className="btn ghost" onClick={() => router.back()}>
+        <button type="button" className="btn ghost" onClick={() => onCancel ? onCancel() : router.back()}>
           Cancelar
         </button>
       </div>
