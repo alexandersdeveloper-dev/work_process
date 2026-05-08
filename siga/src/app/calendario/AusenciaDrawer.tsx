@@ -205,7 +205,8 @@ export default function AusenciaDrawer({ selectedDays, onRemoveDay, onClose, onR
             {profiles.length === 0 ? (
               <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>Carregando…</div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 1, maxHeight: 180, overflowY: 'auto', border: '1px solid var(--line)', borderRadius: 6, overflow: 'hidden' }}>
+              <div style={{ border: '1px solid var(--line)', borderRadius: 6, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', maxHeight: 180, overflowY: 'auto' }}>
                 {profiles.map((p, i) => {
                   const checked = selectedIds.includes(p.id)
                   return (
@@ -235,6 +236,7 @@ export default function AusenciaDrawer({ selectedDays, onRemoveDay, onClose, onR
                     </label>
                   )
                 })}
+              </div>
               </div>
             )}
           </div>
