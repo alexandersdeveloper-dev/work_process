@@ -18,6 +18,13 @@ function serviceClient() {
 }
 
 export async function POST(request: Request) {
+  // Verificação antecipada de env vars obrigatórias
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('[admin/users POST] env SUPABASE_SERVICE_ROLE_KEY não configurada')
+    return NextResponse.json({ error: 'Configuração do servidor incompleta.' }, { status: 500 })
+  }
+
+  try {
   // Rate limit: 10 criações por hora por IP
   const h = await headers()
   const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
@@ -110,4 +117,8 @@ export async function POST(request: Request) {
   })
 
   return NextResponse.json({ id: data.user.id })
+  } catch (e) {
+    console.error('[admin/users POST] erro inesperado:', e)
+    return NextResponse.json({ error: 'Erro interno do servidor.' }, { status: 500 })
+  }
 }

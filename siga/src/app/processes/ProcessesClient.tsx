@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useLayoutEffect, useTransition, useRef } from 'react'
+import { useState, useMemo, useLayoutEffect, useTransition, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -128,10 +128,10 @@ export default function ProcessesClient({
   const [indicator, setIndicator] = useState({ left: 0, width: 0 })
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
 
-  useState(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem(LS_KEY) as View | null : null
+  useEffect(() => {
+    const saved = localStorage.getItem(LS_KEY) as View | null
     if (saved) setView(saved)
-  })
+  }, [])
 
   useLayoutEffect(() => {
     const idx = TABS.findIndex((t) => t.key === activeTab)
