@@ -909,3 +909,47 @@ table.t {
   font-family: var(--font-mono);
 }
 .pc-meta svg { flex-shrink: 0; color: var(--muted-2); }
+
+/* ================================================
+   CALENDÁRIO — Layout responsivo
+   ================================================ */
+.cal-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.cal-drawer {
+  width: 288px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+}
+
+.cal-cell {
+  min-height: 60px;
+  border-radius: 6px;
+  cursor: default;
+}
+
+@media (max-width: 768px) {
+  .cal-layout {
+    flex-direction: column;
+  }
+
+  .cal-drawer {
+    width: 100%;
+    position: static;
+  }
+
+  .cal-cell {
+    min-height: 44px;
+    padding: 4px 5px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .cal-cell {
+    min-height: 36px;
+  }
+}

@@ -59,29 +59,44 @@ function DayPopup({ date, folgas, canManage, onClose, onEdit, onDelete }: {
   }
 
   return createPortal(
-    <>
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 100,
+        background: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(2px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '40px 16px',
+        animation: 'modal-bg-in 0.18s ease both',
+      }}
+      onClick={onClose}
+    >
       <div
-        style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(2px)' }}
-        onClick={onClose}
-      />
-      <div style={{
-        position: 'fixed', zIndex: 101,
-        top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
-        background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 8,
-        width: '100%', maxWidth: 400, padding: 20,
-        boxShadow: '0 20px 48px rgba(0,0,0,0.18)',
-        animation: 'modal-panel-in 0.2s cubic-bezier(.34,1.56,.64,1) both',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 8,
+          width: '100%', maxWidth: 420,
+          maxHeight: '100%',
+          display: 'flex', flexDirection: 'column',
+          boxShadow: '0 20px 48px rgba(0,0,0,0.18)',
+          animation: 'modal-panel-in 0.2s cubic-bezier(.34,1.56,.64,1) both',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Header fixo */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+          padding: '16px 20px', borderBottom: '1px solid var(--line)', flexShrink: 0,
+        }}>
           <div>
             <div style={{ fontWeight: 600, fontSize: 14, textTransform: 'capitalize' }}>{fmtLong(date)}</div>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
               {folgas.length} ausência{folgas.length !== 1 ? 's' : ''}
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 18, lineHeight: 1 }}>✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 18, lineHeight: 1, flexShrink: 0, marginLeft: 8 }}>✕</button>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+        {/* Lista rolável */}
+        <div style={{ overflowY: 'auto', padding: '12px 20px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {folgas.map((f) => (
             <div key={f.id} style={{
               padding: '8px 12px', borderRadius: 6,
@@ -119,7 +134,6 @@ function DayPopup({ date, folgas, canManage, onClose, onEdit, onDelete }: {
                 </div>
               </div>
 
-              {/* Confirmação inline de exclusão */}
               {confirmId === f.id ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '6px 8px', background: 'var(--panel-alt)', borderRadius: 4 }}>
                   <span style={{ fontSize: 12, color: 'var(--ink-2)', flex: 1 }}>Excluir este registro?</span>
@@ -153,7 +167,7 @@ function DayPopup({ date, folgas, canManage, onClose, onEdit, onDelete }: {
           ))}
         </div>
       </div>
-    </>,
+    </div>,
     document.body
   )
 }
@@ -391,7 +405,7 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+      <div className="cal-layout">
 
         {/* Calendário */}
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -433,8 +447,9 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
                     <div
                       key={i}
                       onClick={() => isClickable && handleDayClick(key, hasFolga)}
+                      className="cal-cell"
                       style={{
-                        minHeight: 60, borderRadius: 6, padding: '6px 8px',
+                        padding: '6px 8px',
                         background: isSelected
                           ? 'var(--accent)'
                           : isT

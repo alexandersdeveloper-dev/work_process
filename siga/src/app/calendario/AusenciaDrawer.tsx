@@ -114,7 +114,7 @@ export default function AusenciaDrawer({ selectedDays, onRemoveDay, onClose, onR
   })()
 
   return (
-    <div style={{ width: 288, flexShrink: 0, position: 'sticky', top: 0 }}>
+    <div className="cal-drawer">
       <div className="card" style={{ overflow: 'hidden' }}>
         {/* Header */}
         <div style={{
