@@ -21,7 +21,7 @@ export default function AusenciaDrawer({ selectedDays, onRemoveDay, onClose, onR
   const { user } = useUser()
   const supabase = createClient()
   const [profiles, setProfiles] = useState<Profile[]>([])
-  const [userId, setUserId] = useState('')
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [type, setType] = useState<AusenciaType>('folga')
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
@@ -31,19 +31,26 @@ export default function AusenciaDrawer({ selectedDays, onRemoveDay, onClose, onR
     async function load() {
       const { data } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, full_name, role, cargo')
         .neq('role', 'admin')
         .order('full_name')
-      const list = (data as Profile[] | null) ?? []
-      setProfiles(list)
-      if (list.length > 0) setUserId(list[0].id)
+      setProfiles((data as Profile[] | null) ?? [])
     }
     load()
   }, [])
 
+  function toggleServidor(id: string) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
+  }
+
+  function selectAll() { setSelectedIds(profiles.map((p) => p.id)) }
+  function clearAll() { setSelectedIds([]) }
+
   async function handleSubmit() {
-    if (!userId || selectedDays.length === 0) {
-      setError('Selecione o servidor e pelo menos um dia.')
+    if (selectedIds.length === 0 || selectedDays.length === 0) {
+      setError('Selecione ao menos um servidor e um dia.')
       return
     }
     setLoading(true)
@@ -51,38 +58,60 @@ export default function AusenciaDrawer({ selectedDays, onRemoveDay, onClose, onR
 
     const registeredBy = user!.id
 
-    if (type === 'ferias') {
-      const start = selectedDays[0]
-      const end = selectedDays[selectedDays.length - 1]
-      const { data, error: err } = await supabase
-        .from('folgas')
-        .insert({ user_id: userId, registered_by: registeredBy, date: start, end_date: end, type: 'ferias', description: description.trim() || null })
-        .select().single()
-      if (err) { setError(err.message); setLoading(false); return }
-      await supabase.from('notifications').insert({
-        user_id: userId, type: 'folga_registered', title: 'Férias registradas',
-        body: `Férias de ${fmtDay(start)} a ${fmtDay(end)}.`,
-        related_id: (data as { id: string }).id, related_type: 'folga',
-      })
-    } else {
-      const records = selectedDays.map((d) => ({
-        user_id: userId, registered_by: registeredBy, date: d,
-        end_date: null, type: 'folga', description: description.trim() || null,
-      }))
-      const { data: inserted, error: err } = await supabase.from('folgas').insert(records).select()
-      if (err) { setError(err.message); setLoading(false); return }
-      const firstId = (inserted as { id: string }[])[0]?.id
-      const label = selectedDays.length === 1 ? fmtDay(selectedDays[0]) : `${selectedDays.length} dias`
-      await supabase.from('notifications').insert({
-        user_id: userId, type: 'folga_registered', title: 'Folga registrada',
-        body: `Folga registrada: ${label}.`,
-        related_id: firstId, related_type: 'folga',
-      })
+    try {
+      if (type === 'ferias') {
+        const start = selectedDays[0]
+        const end = selectedDays[selectedDays.length - 1]
+
+        for (const uid of selectedIds) {
+          const { data, error: err } = await supabase
+            .from('folgas')
+            .insert({ user_id: uid, registered_by: registeredBy, date: start, end_date: end, type: 'ferias', description: description.trim() || null })
+            .select().single()
+          if (err) { setError(err.message); setLoading(false); return }
+          await supabase.from('notifications').insert({
+            user_id: uid, type: 'folga_registered', title: 'Férias registradas',
+            body: `Férias de ${fmtDay(start)} a ${fmtDay(end)}.`,
+            related_id: (data as { id: string }).id, related_type: 'folga',
+          })
+        }
+      } else {
+        for (const uid of selectedIds) {
+          const records = selectedDays.map((d) => ({
+            user_id: uid, registered_by: registeredBy, date: d,
+            end_date: null, type: 'folga' as AusenciaType, description: description.trim() || null,
+          }))
+          const { data: inserted, error: err } = await supabase.from('folgas').insert(records).select()
+          if (err) { setError(err.message); setLoading(false); return }
+          const firstId = (inserted as { id: string }[])[0]?.id
+          const label = selectedDays.length === 1 ? fmtDay(selectedDays[0]) : `${selectedDays.length} dias`
+          await supabase.from('notifications').insert({
+            user_id: uid, type: 'folga_registered', title: 'Folga registrada',
+            body: `Folga registrada: ${label}.`,
+            related_id: firstId, related_type: 'folga',
+          })
+        }
+      }
+    } catch {
+      setError('Erro ao registrar. Tente novamente.')
+      setLoading(false)
+      return
     }
 
     setLoading(false)
     onRegistered()
   }
+
+  const allSelected = profiles.length > 0 && selectedIds.length === profiles.length
+  const noneSelected = selectedIds.length === 0
+
+  const btnLabel = (() => {
+    if (loading) return 'Salvando…'
+    if (selectedDays.length === 0 || noneSelected) return 'Registrar'
+    const dias = `${selectedDays.length} dia${selectedDays.length !== 1 ? 's' : ''}`
+    const serv = `${selectedIds.length} servidor${selectedIds.length !== 1 ? 'es' : ''}`
+    return `Registrar ${dias} · ${serv}`
+  })()
 
   return (
     <div style={{ width: 288, flexShrink: 0, position: 'sticky', top: 0 }}>
@@ -108,7 +137,7 @@ export default function AusenciaDrawer({ selectedDays, onRemoveDay, onClose, onR
                 Clique nos dias do calendário
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 180, overflowY: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 140, overflowY: 'auto' }}>
                 {selectedDays.map((d) => (
                   <div key={d} style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -145,20 +174,72 @@ export default function AusenciaDrawer({ selectedDays, onRemoveDay, onClose, onR
             </div>
             {type === 'ferias' && selectedDays.length > 1 && (
               <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>
-                1 registro de {fmtDay(selectedDays[0])} a {fmtDay(selectedDays[selectedDays.length - 1])}
+                {fmtDay(selectedDays[0])} → {fmtDay(selectedDays[selectedDays.length - 1])}
               </div>
             )}
           </div>
 
-          {/* Servidor */}
-          <div className="form-group" style={{ margin: 0 }}>
-            <label style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Servidor</label>
-            <select value={userId} onChange={(e) => setUserId(e.target.value)} style={{ fontSize: 13 }}>
-              {profiles.map((p) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-            </select>
+          {/* Servidores */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                Servidores
+                {selectedIds.length > 0 && (
+                  <span style={{ marginLeft: 6, color: 'var(--accent)', fontWeight: 700 }}>· {selectedIds.length}</span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {!allSelected && (
+                  <button onClick={selectAll} style={{ fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                    Todos
+                  </button>
+                )}
+                {!noneSelected && (
+                  <button onClick={clearAll} style={{ fontSize: 11, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                    Limpar
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {profiles.length === 0 ? (
+              <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>Carregando…</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 1, maxHeight: 180, overflowY: 'auto', border: '1px solid var(--line)', borderRadius: 6, overflow: 'hidden' }}>
+                {profiles.map((p, i) => {
+                  const checked = selectedIds.includes(p.id)
+                  return (
+                    <label key={p.id} style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '8px 12px', cursor: 'pointer',
+                      background: checked ? 'var(--accent-soft)' : i % 2 === 0 ? 'transparent' : 'var(--panel-alt)',
+                      transition: 'background 0.12s',
+                      borderBottom: i < profiles.length - 1 ? '1px solid var(--line)' : 'none',
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleServidor(p.id)}
+                        style={{ width: 'auto', margin: 0, cursor: 'pointer', accentColor: 'var(--accent)', flexShrink: 0 }}
+                      />
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: checked ? 600 : 400, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {p.full_name}
+                        </div>
+                        {p.cargo && (
+                          <div style={{ fontSize: 11, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {p.cargo}
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
-          {/* Descrição */}
+          {/* Observação */}
           <div className="form-group" style={{ margin: 0 }}>
             <label style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Observação</label>
             <input
@@ -174,14 +255,10 @@ export default function AusenciaDrawer({ selectedDays, onRemoveDay, onClose, onR
           <button
             className="btn primary"
             onClick={handleSubmit}
-            disabled={loading || selectedDays.length === 0}
+            disabled={loading || selectedDays.length === 0 || noneSelected}
             style={{ justifyContent: 'center' }}
           >
-            {loading
-              ? 'Salvando…'
-              : selectedDays.length > 0
-              ? `Registrar ${selectedDays.length} dia${selectedDays.length !== 1 ? 's' : ''}`
-              : 'Registrar'}
+            {btnLabel}
           </button>
         </div>
       </div>

@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { ROLE_LABELS } from '@/lib/auth-guard'
 import DeleteUserButton from './DeleteUserButton'
 import NewUserForm from './NewUserForm'
+import EditUserForm from './[id]/EditUserForm'
 import type { Profile } from '@/types'
 
 interface Props {
@@ -20,8 +21,10 @@ interface Props {
 export default function UsuariosClient({ users, total, page, totalPages, currentUserId }: Props) {
   const router = useRouter()
   const [showModal, setShowModal] = useState(false)
+  const [editingUser, setEditingUser] = useState<Profile | null>(null)
 
   function closeModal() { setShowModal(false) }
+  function closeEdit() { setEditingUser(null) }
 
   const modal = showModal ? createPortal(
     <div
@@ -94,9 +97,7 @@ export default function UsuariosClient({ users, total, page, totalPages, current
                   </td>
                   <td>
                     <span style={{ display: 'inline-flex', gap: 6 }}>
-                      <Link href={`/admin/usuarios/${u.id}`}>
-                        <button className="btn ghost sm">Editar</button>
-                      </Link>
+                      <button className="btn ghost sm" onClick={() => setEditingUser(u)}>Editar</button>
                       <DeleteUserButton userId={u.id} isSelf={u.id === currentUserId} />
                     </span>
                   </td>
@@ -128,6 +129,47 @@ export default function UsuariosClient({ users, total, page, totalPages, current
       </div>
 
       {modal}
+
+      {editingUser && createPortal(
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 200,
+            background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 24,
+            animation: 'modal-bg-in 0.18s ease both',
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) closeEdit() }}
+        >
+          <div style={{
+            background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 8,
+            width: '100%', maxWidth: 480,
+            boxShadow: '0 24px 48px rgba(0,0,0,0.18)',
+            animation: 'modal-panel-in 0.22s cubic-bezier(.34,1.56,.64,1) both',
+          }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '14px 18px', borderBottom: '1px solid var(--line)',
+            }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>Editar usuário</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 1 }}>
+                  {editingUser.full_name || 'Sem nome'}
+                </div>
+              </div>
+              <button onClick={closeEdit} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 18, lineHeight: 1, padding: 4 }}>✕</button>
+            </div>
+            <div style={{ padding: 18 }}>
+              <EditUserForm
+                profile={editingUser}
+                onSuccess={() => { closeEdit(); router.refresh() }}
+                onCancel={closeEdit}
+              />
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </>
   )
 }

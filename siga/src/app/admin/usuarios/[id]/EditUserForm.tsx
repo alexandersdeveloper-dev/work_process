@@ -8,7 +8,15 @@ import type { Profile, UserRole } from '@/types'
 
 const ROLES: UserRole[] = ['admin', 'chefe', 'servidor']
 
-export default function EditUserForm({ profile }: { profile: Profile }) {
+export default function EditUserForm({
+  profile,
+  onSuccess,
+  onCancel,
+}: {
+  profile: Profile
+  onSuccess?: () => void
+  onCancel?: () => void
+}) {
   const router = useRouter()
   const supabase = createClient()
   const [fullName, setFullName] = useState(profile.full_name)
@@ -26,8 +34,12 @@ export default function EditUserForm({ profile }: { profile: Profile }) {
       .update({ full_name: fullName.trim(), role, cargo: cargo.trim() || null, updated_at: new Date().toISOString() })
       .eq('id', profile.id)
     if (err) { setError(err.message); setLoading(false); return }
-    router.push('/admin/usuarios')
-    router.refresh()
+    if (onSuccess) {
+      onSuccess()
+    } else {
+      router.push('/admin/usuarios')
+      router.refresh()
+    }
   }
 
   return (
@@ -53,7 +65,9 @@ export default function EditUserForm({ profile }: { profile: Profile }) {
         <button type="submit" className="btn primary" disabled={loading}>
           {loading ? 'Salvando…' : 'Salvar'}
         </button>
-        <button type="button" className="btn ghost" onClick={() => router.back()}>Cancelar</button>
+        <button type="button" className="btn ghost" onClick={() => onCancel ? onCancel() : router.back()} disabled={loading}>
+          Cancelar
+        </button>
       </div>
     </form>
   )
