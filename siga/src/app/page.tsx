@@ -1,28 +1,45 @@
 export const dynamic = 'force-dynamic'
 
-import { supabase } from '@/lib/supabase'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 import Link from 'next/link'
 import { STATUS_LABELS, STATUS_KIND, getProcessTypeLabel } from '@/types'
 import type { Process } from '@/types'
+import DeadlineNotifier from './DeadlineNotifier'
 
-async function getStats() {
-  const { data, error } = await supabase.from('processes').select('status')
-  if (error || !data) return { total: 0, active: 0, in_progress: 0, delayed: 0 }
+async function getPersonalFilters(uid: string) {
+  const supabase = await createServerSupabaseClient()
+  const { data: shared } = await supabase
+    .from('process_shares')
+    .select('process_id')
+    .eq('shared_with_user_id', uid)
+  const sharedIds = (shared ?? []).map((s: { process_id: string }) => s.process_id)
+  const filters = [`owner_id.eq.${uid}`, ...(sharedIds.length > 0 ? [`id.in.(${sharedIds.join(',')})`] : [])]
+  return filters
+}
+
+async function getStats(uid: string) {
+  const supabase = await createServerSupabaseClient()
+  const filters = await getPersonalFilters(uid)
+  const { data } = await supabase.from('processes').select('status').or(filters.join(','))
+  if (!data) return { total: 0, active: 0, in_progress: 0, delayed: 0 }
   return {
     total: data.length,
-    active: data.filter((p) => p.status === 'active').length,
-    in_progress: data.filter((p) => p.status === 'in_progress').length,
-    delayed: data.filter((p) => p.status === 'delayed').length,
+    active: data.filter((p: { status: string }) => p.status === 'active').length,
+    in_progress: data.filter((p: { status: string }) => p.status === 'in_progress').length,
+    delayed: data.filter((p: { status: string }) => p.status === 'delayed').length,
   }
 }
 
-async function getRecent(): Promise<Process[]> {
+async function getRecent(uid: string): Promise<Process[]> {
+  const supabase = await createServerSupabaseClient()
+  const filters = await getPersonalFilters(uid)
   const { data } = await supabase
     .from('processes')
     .select('*')
+    .or(filters.join(','))
     .order('updated_at', { ascending: false })
     .limit(8)
-  return data ?? []
+  return (data as Process[]) ?? []
 }
 
 function formatDate(iso: string) {
@@ -30,14 +47,21 @@ function formatDate(iso: string) {
 }
 
 export default async function DashboardPage() {
-  const [stats, recent] = await Promise.all([getStats(), getRecent()])
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const uid = user?.id ?? ''
+
+  const [stats, recent] = await Promise.all([getStats(uid), getRecent(uid)])
 
   return (
     <>
+      {/* Notificador de deadline (client component, silent) */}
+      {uid && <DeadlineNotifier userId={uid} />}
+
       <div className="page-head">
         <div>
           <h1>Dashboard</h1>
-          <p className="sub">Visão geral dos processos de trabalho</p>
+          <p className="sub">Seus processos de trabalho</p>
         </div>
         <Link href="/processes/new">
           <button className="btn primary">+ Novo processo</button>

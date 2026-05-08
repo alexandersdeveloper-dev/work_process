@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const response = NextResponse.next({ request })
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -21,7 +21,9 @@ export async function middleware(request: NextRequest) {
 
   const { data: { session } } = await supabase.auth.getSession()
 
-  const isLoginPage = request.nextUrl.pathname === '/login'
+  const pathname = request.nextUrl.pathname
+  const isLoginPage = pathname === '/login'
+  const isChangePwdPage = pathname === '/mudar-senha'
 
   if (!session && !isLoginPage) {
     return NextResponse.redirect(new URL('/login', request.url))
@@ -29,6 +31,10 @@ export async function middleware(request: NextRequest) {
 
   if (session && isLoginPage) {
     return NextResponse.redirect(new URL('/', request.url))
+  }
+
+  if (session && session.user.user_metadata?.force_password_change === true && !isChangePwdPage) {
+    return NextResponse.redirect(new URL('/mudar-senha', request.url))
   }
 
   return response

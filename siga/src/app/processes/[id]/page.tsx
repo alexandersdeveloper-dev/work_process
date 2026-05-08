@@ -1,21 +1,24 @@
 export const dynamic = 'force-dynamic'
 
-import { supabase } from '@/lib/supabase'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { STATUS_LABELS, STATUS_KIND, getProcessTypeLabel, PRIORITY_LABELS, PRIORITY_KIND } from '@/types'
-import type { Process, Step } from '@/types'
+import type { Process, Step, ProcessShare } from '@/types'
 import StepTimeline from './StepTimeline'
 import AddStepModal from './AddStepModal'
 import DeleteProcessButton from './DeleteProcessButton'
 import CollapsibleInfo from './CollapsibleInfo'
+import ShareModal from './ShareModal'
 
 async function getProcess(id: string): Promise<Process | null> {
+  const supabase = await createServerSupabaseClient()
   const { data } = await supabase.from('processes').select('*').eq('id', id).single()
   return data
 }
 
 async function getSteps(processId: string): Promise<Step[]> {
+  const supabase = await createServerSupabaseClient()
   const { data } = await supabase
     .from('steps')
     .select('*')
@@ -24,15 +27,33 @@ async function getSteps(processId: string): Promise<Step[]> {
   return data ?? []
 }
 
+async function getShares(processId: string): Promise<ProcessShare[]> {
+  const supabase = await createServerSupabaseClient()
+  const { data } = await supabase
+    .from('process_shares')
+    .select('*, profile:profiles!process_shares_shared_with_user_id_fkey(*)')
+    .eq('process_id', processId)
+  return (data as ProcessShare[]) ?? []
+}
+
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
 }
 
 export default async function ProcessDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const [process, steps] = await Promise.all([getProcess(id), getSteps(id)])
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).single()
+    : { data: null }
+
+  const [process, steps, shares] = await Promise.all([getProcess(id), getSteps(id), getShares(id)])
 
   if (!process) notFound()
+
+  const role = profile?.role ?? 'servidor'
+  const canShare = role === 'admin' || role === 'chefe' || process.owner_id === user?.id
 
   const fields = [
     { label: 'Tipo',         value: getProcessTypeLabel(process.type) },
@@ -60,6 +81,13 @@ export default async function ProcessDetailPage({ params }: { params: Promise<{ 
           <p className="sub">{getProcessTypeLabel(process.type)} · Responsável: {process.responsible}</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
+          {canShare && (
+            <ShareModal
+              processId={process.id}
+              processOwnerId={process.owner_id}
+              existingShares={shares}
+            />
+          )}
           <AddStepModal processId={process.id} />
           <Link href={`/processes/${process.id}/edit`}>
             <button className="btn">Editar</button>
@@ -67,6 +95,20 @@ export default async function ProcessDetailPage({ params }: { params: Promise<{ 
           <DeleteProcessButton id={process.id} />
         </div>
       </div>
+
+      {shares.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: -8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>Compartilhado com:</span>
+          {shares.map((s) => (
+            <span key={s.id} style={{
+              fontSize: 12, background: 'var(--panel-alt)', border: '1px solid var(--line)',
+              borderRadius: 20, padding: '2px 10px', color: 'var(--ink-2)',
+            }}>
+              {s.profile?.full_name ?? '—'}
+            </span>
+          ))}
+        </div>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
         <CollapsibleInfo description={process.description} fields={fields} />

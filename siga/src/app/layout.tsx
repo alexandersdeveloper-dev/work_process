@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { ShellProvider } from '@/components/shell/ShellProvider'
 import AppShell from '@/components/shell/AppShell'
+import { UserProvider } from '@/lib/user-context'
 
 export const metadata: Metadata = {
   title: 'Work Process',
@@ -23,9 +24,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body>
-        <ShellProvider>
-          <AppShell>{children}</AppShell>
-        </ShellProvider>
+        <UserProvider>
+          <ShellProvider>
+            <AppShell>{children}</AppShell>
+          </ShellProvider>
+        </UserProvider>
       </body>
     </html>
   )

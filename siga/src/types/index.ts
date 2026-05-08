@@ -3,6 +3,75 @@
 export type ProcessType = string
 export type StepType = string
 
+export type UserRole = 'admin' | 'chefe' | 'servidor'
+
+export interface Profile {
+  id: string
+  full_name: string
+  role: UserRole
+  cargo: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ProcessShare {
+  id: string
+  process_id: string
+  shared_with_user_id: string
+  shared_by_user_id: string
+  created_at: string
+  profile?: Profile
+}
+
+export type ComunicadoType = 'aviso' | 'comunicado' | 'informativo'
+
+export const COMUNICADO_TYPE_LABELS: Record<ComunicadoType, string> = {
+  aviso: 'Aviso',
+  comunicado: 'Comunicado',
+  informativo: 'Informativo',
+}
+
+export interface Comunicado {
+  id: string
+  title: string
+  body: string
+  type: ComunicadoType
+  target_user_ids: string[] | null
+  author_id: string
+  created_at: string
+  updated_at: string
+  author?: Profile
+}
+
+export type AusenciaType = 'folga' | 'ferias'
+
+export interface Folga {
+  id: string
+  user_id: string
+  registered_by: string
+  date: string
+  end_date: string | null
+  type: AusenciaType
+  description: string | null
+  created_at: string
+  profile?: Profile
+}
+
+export type NotificationType = 'process_shared' | 'new_comunicado' | 'folga_registered' | 'deadline_soon'
+export type NotificationRelatedType = 'process' | 'comunicado' | 'folga'
+
+export interface AppNotification {
+  id: string
+  user_id: string
+  type: NotificationType
+  title: string
+  body: string | null
+  read: boolean
+  related_id: string | null
+  related_type: NotificationRelatedType | null
+  created_at: string
+}
+
 export type ProcessStatus =
   | 'active'
   | 'in_progress'
@@ -22,9 +91,12 @@ export interface Process {
   responsible: string
   portal_section: string | null
   deadline: string | null
+  owner_id: string | null
   created_at: string
   updated_at: string
   steps?: Step[]
+  owner?: Profile
+  shares?: ProcessShare[]
 }
 
 export interface Step {

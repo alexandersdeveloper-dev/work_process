@@ -272,7 +272,7 @@ a { color: inherit; text-decoration: none; }
   animation: shimmer 1.4s ease infinite;
 }
 
-.content { padding: 28px; max-width: 1400px; width: 100%; }
+.content { padding: 28px; width: 100%; }
 .page-enter { animation: page-in 0.18s ease both; }
 
 .page-head {

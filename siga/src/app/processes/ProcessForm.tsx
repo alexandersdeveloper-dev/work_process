@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useUser } from '@/lib/user-context'
 import type { Process, ProcessStatus, Priority } from '@/types'
 
 const LS_TYPES_KEY = 'siga_process_types'
@@ -62,6 +63,7 @@ interface Props { process?: Process }
 
 export default function ProcessForm({ process }: Props) {
   const router = useRouter()
+  const { user } = useUser()
   const isEdit = !!process
 
   const [types, setTypes] = useState<string[]>(DEFAULT_TYPES)
@@ -136,7 +138,10 @@ export default function ProcessForm({ process }: Props) {
     if (isEdit) {
       result = await supabase.from('processes').update(payload).eq('id', process.id)
     } else {
-      result = await supabase.from('processes').insert(payload).select().single()
+      result = await supabase.from('processes').insert({
+        ...payload,
+        owner_id: user?.id ?? null,
+      }).select().single()
     }
 
     if (result.error) {

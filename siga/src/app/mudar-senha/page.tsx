@@ -1,33 +1,38 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { validatePassword } from '@/lib/password-policy'
 
-export default function LoginPage() {
-  const router = useRouter()
-  const [email, setEmail] = useState('')
+export default function MudarSenhaPage() {
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!email.trim() || !password) { setError('Preencha e-mail e senha.'); return }
+    const pwCheck = validatePassword(password)
+    if (!pwCheck.valid) { setError(pwCheck.error!); return }
+    if (password !== confirm) { setError('As senhas não coincidem.'); return }
     setLoading(true)
     setError('')
 
     const supabase = createClient()
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password })
+    const { error: err } = await supabase.auth.updateUser({
+      password,
+      data: { force_password_change: false },
+    })
 
     if (err) {
-      setError('E-mail ou senha incorretos.')
+      setError('Não foi possível alterar a senha. Tente novamente.')
       setLoading(false)
       return
     }
 
-    router.push('/')
-    router.refresh()
+    // Hard redirect: garante que o browser envia o cookie já atualizado ao proxy,
+    // evitando o loop onde o JWT antigo ainda carrega force_password_change=true.
+    window.location.replace('/')
   }
 
   return (
@@ -50,50 +55,48 @@ export default function LoginPage() {
             justifyContent: 'center',
             marginBottom: 16,
           }}>
-            <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="var(--bg)" strokeWidth="1.8">
-              <path d="M8 2L2 5v4c0 3 2.5 5.5 6 6.5 3.5-1 6-3.5 6-6.5V5L8 2z" />
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--bg)" strokeWidth="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
           </div>
-          <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>SIGA</h1>
-          <p className="sub" style={{ marginTop: 4 }}>Sistema Integrado de Gestão</p>
+          <h1 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Defina sua senha</h1>
+          <p className="sub" style={{ marginTop: 4 }}>
+            Crie uma nova senha para continuar acessando o sistema
+          </p>
         </div>
 
         <div className="card" style={{ padding: 28 }}>
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label>E-mail</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="seu@email.com"
-                autoComplete="email"
-                autoFocus
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Senha</label>
+              <label>Nova senha</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                autoComplete="current-password"
+                placeholder="Mínimo 8 caracteres, 1 maiúscula, 1 número"
+                autoFocus
               />
             </div>
-
+            <div className="form-group">
+              <label>Confirmar senha</label>
+              <input
+                type="password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                placeholder="Repita a nova senha"
+              />
+            </div>
             {error && (
               <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 12 }}>{error}</p>
             )}
-
             <button
               type="submit"
               className="btn primary"
               disabled={loading}
               style={{ width: '100%', justifyContent: 'center', marginTop: 4 }}
             >
-              {loading ? 'Entrando…' : 'Entrar'}
+              {loading ? 'Salvando…' : 'Definir senha'}
             </button>
           </form>
         </div>

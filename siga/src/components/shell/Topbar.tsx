@@ -3,11 +3,14 @@
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useShell } from './ShellProvider'
+import { useUser } from '@/lib/user-context'
 import LogoutButton from './LogoutButton'
+import NotificationBell from './NotificationBell'
 
 export default function Topbar() {
   const pathname = usePathname()
   const { theme, toggleTheme, toggleSidebar } = useShell()
+  const { profile } = useUser()
 
   const isDetail = pathname.match(/^\/processes\/[^/]+$/) && !pathname.endsWith('/new')
   const isEdit = pathname.endsWith('/edit')
@@ -24,6 +27,17 @@ export default function Topbar() {
   } else if (isEdit) {
     crumbs.push({ label: 'Processos', href: '/processes' })
     crumbs.push({ label: 'Editar' })
+  } else if (pathname === '/comunicados') crumbs.push({ label: 'Comunicados' })
+  else if (pathname === '/comunicados/new') {
+    crumbs.push({ label: 'Comunicados', href: '/comunicados' })
+    crumbs.push({ label: 'Novo' })
+  } else if (pathname.startsWith('/comunicados') && isEdit) {
+    crumbs.push({ label: 'Comunicados', href: '/comunicados' })
+    crumbs.push({ label: 'Editar' })
+  } else if (pathname === '/calendario') crumbs.push({ label: 'Calendário' })
+  else if (pathname.startsWith('/admin')) {
+    crumbs.push({ label: 'Admin' })
+    if (pathname.includes('/usuarios')) crumbs.push({ label: 'Usuários' })
   }
 
   return (
@@ -71,6 +85,26 @@ export default function Topbar() {
           </svg>
         )}
       </button>
+
+      <NotificationBell />
+
+      {/* Avatar com nome */}
+      {profile && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 4 }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: '50%',
+            background: 'var(--ink)', color: 'var(--bg)',
+            display: 'grid', placeItems: 'center',
+            fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 11,
+            flexShrink: 0,
+          }}>
+            {profile.full_name.charAt(0).toUpperCase()}
+          </div>
+          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {profile.full_name}
+          </span>
+        </div>
+      )}
 
       <LogoutButton />
     </header>

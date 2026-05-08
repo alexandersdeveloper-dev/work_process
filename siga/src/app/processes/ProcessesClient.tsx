@@ -113,7 +113,15 @@ function CardsView({ processes }: { processes: Process[] }) {
 }
 
 /* ---------- Main component ---------- */
-export default function ProcessesClient({ processes }: { processes: Process[] }) {
+export default function ProcessesClient({
+  processes,
+  title = 'Meus Processos',
+  subtitle = 'Seus processos de trabalho',
+}: {
+  processes: Process[]
+  title?: string
+  subtitle?: string
+}) {
   const [activeTab, setActiveTab] = useState('all')
   const [view, setView] = useState<View>('list')
   const [indicator, setIndicator] = useState({ left: 0, width: 0 })
@@ -149,8 +157,8 @@ export default function ProcessesClient({ processes }: { processes: Process[] })
     <>
       <div className="page-head">
         <div>
-          <h1>Processos</h1>
-          <p className="sub">Todos os processos de trabalho da equipe</p>
+          <h1>{title}</h1>
+          <p className="sub">{subtitle}</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <div className="view-toggle">
