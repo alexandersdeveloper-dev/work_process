@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@/lib/user-context'
 import { canManageFolgas } from '@/lib/auth-guard'
@@ -57,7 +58,7 @@ function DayPopup({ date, folgas, canManage, onClose, onEdit, onDelete }: {
     setConfirmId(null)
   }
 
-  return (
+  return createPortal(
     <>
       <div
         style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(2px)' }}
@@ -152,7 +153,8 @@ function DayPopup({ date, folgas, canManage, onClose, onEdit, onDelete }: {
           ))}
         </div>
       </div>
-    </>
+    </>,
+    document.body
   )
 }
 
@@ -209,74 +211,101 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
       return new Date(y, m - 1, dd).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })
     }
 
-    const rows = dayEntries.map(({ date, items }) => {
-      const dateLabel = fmtDateRow(date)
-      const people = items.map((f) => {
+    const rows = dayEntries.map(({ date, items }, idx) => {
+      const [y, m, d] = date.split('-').map(Number)
+      const dateObj = new Date(y, m - 1, d)
+      const weekday = dateObj.toLocaleDateString('pt-BR', { weekday: 'long' })
+      const dayNum = dateObj.toLocaleDateString('pt-BR', { day: '2-digit' })
+      const monthLabel = dateObj.toLocaleDateString('pt-BR', { month: 'short' })
+      const rowBg = idx % 2 === 0 ? '#ffffff' : '#f9fafb'
+
+      const peopleRows = items.map((f) => {
         const isFerias = f.type === 'ferias'
-        const badgeBg = isFerias ? '#dcfce7' : '#fef3c7'
-        const badgeColor = isFerias ? '#15803d' : '#b45309'
-        const typeLabel = isFerias ? 'Fér.' : 'Folga'
-        const note = f.description ? ` <span style="color:#9ca3af;font-size:11px">(${f.description})</span>` : ''
-        return `<span style="display:inline-flex;align-items:center;gap:5px;margin:2px 4px 2px 0;white-space:nowrap">
-          <span style="font-weight:600;color:#111;font-size:13px">${f.profile?.full_name ?? '—'}</span>
-          <span style="display:inline-block;padding:2px 7px;border-radius:20px;background:${badgeBg};color:${badgeColor};font-size:10px;font-weight:600">${typeLabel}</span>${note}
-        </span>`
-      }).join('<span style="color:#d1d5db;margin:0 2px">·</span>')
+        const badgeBg = isFerias ? '#dcfce7' : '#fef9c3'
+        const badgeColor = isFerias ? '#15803d' : '#92400e'
+        const badgeBorder = isFerias ? '#bbf7d0' : '#fde68a'
+        const typeLabel = isFerias ? 'Férias' : 'Folga'
+        const note = f.description ? `<span style="color:#9ca3af;font-size:11px;margin-left:6px">${f.description}</span>` : ''
+        return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #f3f4f6">
+          <span style="font-size:13px;font-weight:500;color:#111;flex:1">${f.profile?.full_name ?? '—'}</span>
+          <span style="display:inline-block;padding:3px 10px;border-radius:4px;background:${badgeBg};color:${badgeColor};border:1px solid ${badgeBorder};font-size:10px;font-weight:700;letter-spacing:.04em;white-space:nowrap">${typeLabel}</span>
+          ${note}
+        </div>`
+      }).join('')
 
       return `<tr>
-        <td style="white-space:nowrap;font-size:13px;color:#374151;font-weight:500;width:130px">${dateLabel}</td>
-        <td style="font-size:13px">${people}</td>
+        <td style="background:${rowBg};vertical-align:top;padding:14px 16px 14px 20px;width:140px;white-space:nowrap;border-bottom:1px solid #e5e7eb">
+          <div style="font-size:22px;font-weight:700;color:#111;line-height:1">${dayNum}</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:3px;text-transform:capitalize">${weekday}</div>
+          <div style="font-size:11px;color:#9ca3af;margin-top:1px;text-transform:capitalize">${monthLabel} ${y}</div>
+        </td>
+        <td style="background:${rowBg};padding:10px 20px 10px 16px;border-bottom:1px solid #e5e7eb;vertical-align:top">
+          <div style="display:flex;flex-direction:column">
+            ${peopleRows}
+          </div>
+          <div style="font-size:11px;color:#9ca3af;margin-top:6px">${items.length} ausência${items.length !== 1 ? 's' : ''}</div>
+        </td>
       </tr>`
     }).join('')
 
-    const emptyMsg = '<tr><td colspan="2" style="color:#9ca3af;font-style:italic;text-align:center;padding:32px 12px">Nenhuma ausência registrada neste mês.</td></tr>'
+    const emptyMsg = `<tr><td colspan="2" style="color:#9ca3af;font-style:italic;text-align:center;padding:48px 20px;font-size:14px">Nenhuma ausência registrada neste mês.</td></tr>`
     const generatedAt = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
 
-    const summaryItems = [
-      uniqueFolga > 0 ? `<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#d97706;display:inline-block"></span>${uniqueFolga} servidor${uniqueFolga !== 1 ? 'es' : ''} com folga</span>` : '',
-      uniqueFerias > 0 ? `<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#16a34a;display:inline-block"></span>${uniqueFerias} servidor${uniqueFerias !== 1 ? 'es' : ''} em férias</span>` : '',
-    ].filter(Boolean).join('<span style="margin:0 8px;color:#d1d5db">·</span>')
+    const statCards = [
+      uniqueFolga > 0 ? `<div style="padding:14px 20px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;min-width:140px">
+        <div style="font-size:24px;font-weight:700;color:#92400e">${uniqueFolga}</div>
+        <div style="font-size:11px;color:#b45309;margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">Servidor${uniqueFolga !== 1 ? 'es' : ''} com folga</div>
+      </div>` : '',
+      uniqueFerias > 0 ? `<div style="padding:14px 20px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;min-width:140px">
+        <div style="font-size:24px;font-weight:700;color:#15803d">${uniqueFerias}</div>
+        <div style="font-size:11px;color:#16a34a;margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">Servidor${uniqueFerias !== 1 ? 'es' : ''} em férias</div>
+      </div>` : '',
+      `<div style="padding:14px 20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;min-width:140px">
+        <div style="font-size:24px;font-weight:700;color:#334155">${dayEntries.length}</div>
+        <div style="font-size:11px;color:#64748b;margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">Dia${dayEntries.length !== 1 ? 's' : ''} com ausência</div>
+      </div>`,
+    ].filter(Boolean).join('')
 
     const html = `<!DOCTYPE html><html lang="pt-BR"><head>
 <meta charset="utf-8">
 <title>Folgas e Férias — ${MONTHS[viewMonth]} ${viewYear}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0 }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #111; font-size: 13px }
-  .header { background: #fff; color: #2C3947; padding: 28px 40px 24px; border-bottom: 3px solid #2C3947 }
-  .header-brand { font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; opacity: .55; margin-bottom: 6px }
-  .header-title { font-size: 22px; font-weight: 700; margin-bottom: 4px }
-  .header-meta { font-size: 12px; opacity: .55 }
-  .body { padding: 28px 40px 48px }
-  .summary { display: flex; gap: 12px; align-items: center; margin-bottom: 24px; font-size: 13px; color: #374151; flex-wrap: wrap }
-  .summary-total { font-weight: 700; font-size: 15px; color: #111; margin-right: 4px }
-  table { width: 100%; border-collapse: collapse }
-  thead tr { border-bottom: 2px solid #e5e7eb }
-  th { text-align: left; padding: 8px 14px; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; color: #6b7280 }
-  td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; vertical-align: middle }
-  tr:last-child td { border-bottom: none }
-  .footer { padding: 16px 40px 32px; font-size: 11px; color: #9ca3af; border-top: 1px solid #f3f4f6; margin-top: 8px }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #fff; color: #111 }
   @media print {
-    * { -webkit-print-color-adjust: exact; print-color-adjust: exact }
-    .header { border-bottom: 3px solid #2C3947 }
-    .body { padding: 20px 32px 32px }
-    .header { padding: 20px 32px 18px }
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important }
+    @page { margin: 18mm 16mm }
+    .no-print { display: none }
   }
 </style>
-</head><body>
-<div class="header">
-  <div class="header-brand">Work Process · SIGA</div>
-  <div class="header-title">Folgas e Férias — ${MONTHS[viewMonth]} ${viewYear}</div>
-  <div class="header-meta">Gerado em ${generatedAt}</div>
+</head><body style="padding:0;margin:0">
+
+<div style="border-bottom:4px solid #1e3a5f;padding:32px 40px 24px;background:#fff">
+  <div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6b7280;margin-bottom:8px">Work Process · SIGA</div>
+  <div style="font-size:26px;font-weight:800;color:#1e3a5f;margin-bottom:4px">Folgas e Férias</div>
+  <div style="font-size:16px;font-weight:500;color:#374151">${MONTHS[viewMonth]} ${viewYear}</div>
+  <div style="font-size:11px;color:#9ca3af;margin-top:6px">Gerado em ${generatedAt}</div>
 </div>
-<div class="body">
-  ${dayEntries.length > 0 ? `<div class="summary"><span class="summary-total">${dayEntries.length} dia${dayEntries.length !== 1 ? 's' : ''} com ausência</span>${summaryItems}</div>` : ''}
-  <table>
-    <thead><tr><th style="width:130px">Data</th><th>Ausências</th></tr></thead>
+
+${dayEntries.length > 0 ? `<div style="padding:24px 40px;display:flex;gap:12px;flex-wrap:wrap;border-bottom:1px solid #e5e7eb">${statCards}</div>` : ''}
+
+<div style="padding:24px 40px 40px">
+  <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
+    <thead>
+      <tr style="background:#f8fafc;border-bottom:2px solid #e5e7eb">
+        <th style="text-align:left;padding:12px 16px 12px 20px;font-size:10px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;color:#6b7280;width:140px">Data</th>
+        <th style="text-align:left;padding:12px 20px 12px 16px;font-size:10px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;color:#6b7280">Ausências</th>
+      </tr>
+    </thead>
     <tbody>${dayEntries.length > 0 ? rows : emptyMsg}</tbody>
   </table>
 </div>
-<div class="footer">Work Process / SIGA · Relatório gerado automaticamente</div>
+
+<div style="padding:16px 40px 32px;font-size:11px;color:#9ca3af;border-top:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center">
+  <span>Work Process / SIGA — Relatório gerado automaticamente</span>
+  <span>${MONTHS[viewMonth]} ${viewYear}</span>
+</div>
+
 </body></html>`
 
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
