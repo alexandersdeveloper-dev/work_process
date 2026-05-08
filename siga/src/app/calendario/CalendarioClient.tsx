@@ -211,60 +211,49 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
       return new Date(y, m - 1, dd).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })
     }
 
+    // Flatten to one row per (day × person), with rowspan on date cell
     const rows = dayEntries.map(({ date, items }, idx) => {
       const [y, m, d] = date.split('-').map(Number)
       const dateObj = new Date(y, m - 1, d)
-      const weekday = dateObj.toLocaleDateString('pt-BR', { weekday: 'long' })
-      const dayNum = dateObj.toLocaleDateString('pt-BR', { day: '2-digit' })
-      const monthLabel = dateObj.toLocaleDateString('pt-BR', { month: 'short' })
-      const rowBg = idx % 2 === 0 ? '#ffffff' : '#f9fafb'
+      const dateFmt = dateObj.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })
+      const rowBg = idx % 2 === 0 ? '#ffffff' : '#f7f8fa'
+      const borderColor = idx % 2 === 0 ? '#e5e7eb' : '#dde1e7'
 
-      const peopleRows = items.map((f) => {
+      const dateCell = `<td rowspan="${items.length}" style="
+        background:${rowBg};vertical-align:middle;white-space:nowrap;
+        padding:12px 16px;width:150px;
+        border-right:1px solid ${borderColor};
+        border-bottom:2px solid #d1d5db;
+        font-size:13px;font-weight:600;color:#111;
+        text-transform:capitalize;
+      ">${dateFmt}</td>`
+
+      return items.map((f, fi) => {
         const isFerias = f.type === 'ferias'
-        const badgeBg = isFerias ? '#dcfce7' : '#fef9c3'
+        const badgeBg   = isFerias ? '#dcfce7' : '#fef9c3'
         const badgeColor = isFerias ? '#15803d' : '#92400e'
         const badgeBorder = isFerias ? '#bbf7d0' : '#fde68a'
         const typeLabel = isFerias ? 'Férias' : 'Folga'
-        const note = f.description ? `<span style="color:#9ca3af;font-size:11px;margin-left:6px">${f.description}</span>` : ''
-        return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #f3f4f6">
-          <span style="font-size:13px;font-weight:500;color:#111;flex:1">${f.profile?.full_name ?? '—'}</span>
-          <span style="display:inline-block;padding:3px 10px;border-radius:4px;background:${badgeBg};color:${badgeColor};border:1px solid ${badgeBorder};font-size:10px;font-weight:700;letter-spacing:.04em;white-space:nowrap">${typeLabel}</span>
-          ${note}
-        </div>`
-      }).join('')
+        const cellBorder = fi < items.length - 1
+          ? `border-bottom:1px solid ${borderColor}`
+          : `border-bottom:2px solid #d1d5db`
+        const bg = `background:${rowBg}`
 
-      return `<tr>
-        <td style="background:${rowBg};vertical-align:top;padding:14px 16px 14px 20px;width:140px;white-space:nowrap;border-bottom:1px solid #e5e7eb">
-          <div style="font-size:22px;font-weight:700;color:#111;line-height:1">${dayNum}</div>
-          <div style="font-size:11px;color:#6b7280;margin-top:3px;text-transform:capitalize">${weekday}</div>
-          <div style="font-size:11px;color:#9ca3af;margin-top:1px;text-transform:capitalize">${monthLabel} ${y}</div>
-        </td>
-        <td style="background:${rowBg};padding:10px 20px 10px 16px;border-bottom:1px solid #e5e7eb;vertical-align:top">
-          <div style="display:flex;flex-direction:column">
-            ${peopleRows}
-          </div>
-          <div style="font-size:11px;color:#9ca3af;margin-top:6px">${items.length} ausência${items.length !== 1 ? 's' : ''}</div>
-        </td>
-      </tr>`
+        return `<tr>
+          ${fi === 0 ? dateCell : ''}
+          <td style="${bg};${cellBorder};padding:12px 16px;font-size:13px;color:#111;vertical-align:middle">${f.profile?.full_name ?? '—'}</td>
+          <td style="${bg};${cellBorder};padding:12px 16px;width:100px;vertical-align:middle;border-left:1px solid ${borderColor}">
+            <span style="display:inline-block;padding:3px 10px;border-radius:4px;background:${badgeBg};color:${badgeColor};border:1px solid ${badgeBorder};font-size:11px;font-weight:700;letter-spacing:.03em;white-space:nowrap">${typeLabel}</span>
+          </td>
+          <td style="${bg};${cellBorder};padding:12px 16px;width:200px;font-size:12px;color:#6b7280;vertical-align:middle;border-left:1px solid ${borderColor}">${f.description ? f.description : '<span style="color:#d1d5db">—</span>'}</td>
+        </tr>`
+      }).join('')
     }).join('')
 
-    const emptyMsg = `<tr><td colspan="2" style="color:#9ca3af;font-style:italic;text-align:center;padding:48px 20px;font-size:14px">Nenhuma ausência registrada neste mês.</td></tr>`
+    const emptyMsg = `<tr><td colspan="4" style="color:#9ca3af;font-style:italic;text-align:center;padding:48px 20px;font-size:14px">Nenhuma ausência registrada neste mês.</td></tr>`
     const generatedAt = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
 
-    const statCards = [
-      uniqueFolga > 0 ? `<div style="padding:14px 20px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;min-width:140px">
-        <div style="font-size:24px;font-weight:700;color:#92400e">${uniqueFolga}</div>
-        <div style="font-size:11px;color:#b45309;margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">Servidor${uniqueFolga !== 1 ? 'es' : ''} com folga</div>
-      </div>` : '',
-      uniqueFerias > 0 ? `<div style="padding:14px 20px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;min-width:140px">
-        <div style="font-size:24px;font-weight:700;color:#15803d">${uniqueFerias}</div>
-        <div style="font-size:11px;color:#16a34a;margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">Servidor${uniqueFerias !== 1 ? 'es' : ''} em férias</div>
-      </div>` : '',
-      `<div style="padding:14px 20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;min-width:140px">
-        <div style="font-size:24px;font-weight:700;color:#334155">${dayEntries.length}</div>
-        <div style="font-size:11px;color:#64748b;margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">Dia${dayEntries.length !== 1 ? 's' : ''} com ausência</div>
-      </div>`,
-    ].filter(Boolean).join('')
+    const totalAusencias = dayEntries.reduce((s, e) => s + e.items.length, 0)
 
     const html = `<!DOCTYPE html><html lang="pt-BR"><head>
 <meta charset="utf-8">
@@ -274,34 +263,33 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #fff; color: #111 }
   @media print {
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important }
-    @page { margin: 18mm 16mm }
-    .no-print { display: none }
+    @page { margin: 16mm 14mm }
   }
 </style>
 </head><body style="padding:0;margin:0">
 
-<div style="border-bottom:4px solid #1e3a5f;padding:32px 40px 24px;background:#fff">
-  <div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6b7280;margin-bottom:8px">Work Process · SIGA</div>
-  <div style="font-size:26px;font-weight:800;color:#1e3a5f;margin-bottom:4px">Folgas e Férias</div>
-  <div style="font-size:16px;font-weight:500;color:#374151">${MONTHS[viewMonth]} ${viewYear}</div>
-  <div style="font-size:11px;color:#9ca3af;margin-top:6px">Gerado em ${generatedAt}</div>
+<div style="border-bottom:4px solid #2C3947;padding:28px 40px 20px">
+  <div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#9ca3af;margin-bottom:6px">Work Process · SIGA</div>
+  <div style="font-size:24px;font-weight:800;color:#2C3947;margin-bottom:2px">Folgas e Férias</div>
+  <div style="font-size:14px;font-weight:500;color:#374151">${MONTHS[viewMonth]} ${viewYear}</div>
+  <div style="font-size:11px;color:#9ca3af;margin-top:5px">Gerado em ${generatedAt} · ${totalAusencias} registro${totalAusencias !== 1 ? 's' : ''} · ${dayEntries.length} dia${dayEntries.length !== 1 ? 's' : ''} com ausência</div>
 </div>
 
-${dayEntries.length > 0 ? `<div style="padding:24px 40px;display:flex;gap:12px;flex-wrap:wrap;border-bottom:1px solid #e5e7eb">${statCards}</div>` : ''}
-
-<div style="padding:24px 40px 40px">
-  <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
+<div style="padding:28px 40px 48px">
+  <table style="width:100%;border-collapse:collapse;border:1px solid #d1d5db">
     <thead>
-      <tr style="background:#f8fafc;border-bottom:2px solid #e5e7eb">
-        <th style="text-align:left;padding:12px 16px 12px 20px;font-size:10px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;color:#6b7280;width:140px">Data</th>
-        <th style="text-align:left;padding:12px 20px 12px 16px;font-size:10px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;color:#6b7280">Ausências</th>
+      <tr style="background:#2C3947">
+        <th style="text-align:left;padding:11px 16px;font-size:10px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;color:#e2e8f0;width:150px;border-right:1px solid #3d5060">Data</th>
+        <th style="text-align:left;padding:11px 16px;font-size:10px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;color:#e2e8f0;border-right:1px solid #3d5060">Nome</th>
+        <th style="text-align:left;padding:11px 16px;font-size:10px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;color:#e2e8f0;width:100px;border-right:1px solid #3d5060">Tipo</th>
+        <th style="text-align:left;padding:11px 16px;font-size:10px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;color:#e2e8f0;width:200px">Descrição</th>
       </tr>
     </thead>
     <tbody>${dayEntries.length > 0 ? rows : emptyMsg}</tbody>
   </table>
 </div>
 
-<div style="padding:16px 40px 32px;font-size:11px;color:#9ca3af;border-top:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center">
+<div style="padding:14px 40px 28px;font-size:11px;color:#9ca3af;border-top:1px solid #f3f4f6;display:flex;justify-content:space-between">
   <span>Work Process / SIGA — Relatório gerado automaticamente</span>
   <span>${MONTHS[viewMonth]} ${viewYear}</span>
 </div>
