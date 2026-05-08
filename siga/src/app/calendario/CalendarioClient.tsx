@@ -477,7 +477,7 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
 
                       {!isSelected && dayFolgas.length > 0 && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                          {dayFolgas.slice(0, 2).map((f) => (
+                          {dayFolgas.slice(0, 5).map((f) => (
                             <div key={f.id} style={{
                               fontSize: 10, borderRadius: 2, padding: '1px 5px',
                               background: f.type === 'ferias' ? '#16a34a' : '#d97706',
@@ -487,8 +487,8 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
                               {f.profile?.full_name ?? '—'}
                             </div>
                           ))}
-                          {dayFolgas.length > 2 && (
-                            <div style={{ fontSize: 10, color: 'var(--muted)' }}>+{dayFolgas.length - 2}</div>
+                          {dayFolgas.length > 5 && (
+                            <div style={{ fontSize: 10, color: 'var(--muted)' }}>+{dayFolgas.length - 5} mais</div>
                           )}
                         </div>
                       )}
