@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { Step, StepMarkState } from '@/types'
+import StepShareModal from './StepShareModal'
 import DateTimePicker from '@/components/DateTimePicker'
 
 const LS_KEY = 'siga_step_types'
@@ -47,7 +48,7 @@ interface EditState {
 
 const MARK_CYCLE: StepMarkState[] = ['neutral', 'positive', 'negative']
 
-function StepItem({ step, isLast, onSaved }: { step: Step; isLast: boolean; onSaved: () => void }) {
+function StepItem({ step, isLast, onSaved, processId, canShare }: { step: Step; isLast: boolean; onSaved: () => void; processId: string; canShare: boolean }) {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [markState, setMarkState] = useState<StepMarkState>(step.mark_state ?? 'neutral')
@@ -210,24 +211,28 @@ function StepItem({ step, isLast, onSaved }: { step: Step; isLast: boolean; onSa
           )}
         </div>
       </div>
-      <button
-        type="button"
-        onClick={() => setEditing(true)}
-        style={{
-          position: 'absolute', top: 0, right: 0,
-          fontSize: 11, color: 'var(--muted)', background: 'none',
-          border: 'none', cursor: 'pointer', padding: '2px 6px',
-          opacity: 0.6,
-        }}
-        title="Editar etapa"
-      >
-        editar
-      </button>
+      <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', gap: 2 }}>
+        {canShare && (
+          <StepShareModal stepId={step.id} stepTitle={step.title} processId={processId} />
+        )}
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          style={{
+            fontSize: 11, color: 'var(--muted)', background: 'none',
+            border: 'none', cursor: 'pointer', padding: '2px 6px',
+            opacity: 0.6,
+          }}
+          title="Editar etapa"
+        >
+          editar
+        </button>
+      </div>
     </div>
   )
 }
 
-export default function StepTimeline({ steps }: { steps: Step[] }) {
+export default function StepTimeline({ steps, processId, canShare }: { steps: Step[]; processId: string; canShare: boolean }) {
   const router = useRouter()
 
   if (steps.length === 0) {
@@ -246,6 +251,8 @@ export default function StepTimeline({ steps }: { steps: Step[] }) {
           step={step}
           isLast={i === steps.length - 1}
           onSaved={() => router.refresh()}
+          processId={processId}
+          canShare={canShare}
         />
       ))}
     </div>

@@ -17,13 +17,11 @@ async function getProcess(id: string): Promise<Process | null> {
   return data
 }
 
-async function getSteps(processId: string): Promise<Step[]> {
+async function getSteps(processId: string, stepIds?: string[]): Promise<Step[]> {
   const supabase = await createServerSupabaseClient()
-  const { data } = await supabase
-    .from('steps')
-    .select('*')
-    .eq('process_id', processId)
-    .order('created_at', { ascending: true })
+  let query = supabase.from('steps').select('*').eq('process_id', processId).order('created_at', { ascending: true })
+  if (stepIds && stepIds.length > 0) query = query.in('id', stepIds)
+  const { data } = await query
   return data ?? []
 }
 
@@ -48,12 +46,17 @@ export default async function ProcessDetailPage({ params }: { params: Promise<{ 
     ? await supabase.from('profiles').select('role').eq('id', user.id).single()
     : { data: null }
 
-  const [process, steps, shares] = await Promise.all([getProcess(id), getSteps(id), getShares(id)])
+  const [process, shares] = await Promise.all([getProcess(id), getShares(id)])
 
   if (!process) notFound()
 
   const role = profile?.role ?? 'servidor'
   const canShare = role === 'admin' || role === 'chefe' || process.owner_id === user?.id
+  const canSeeAllSteps = canShare
+
+  const myShare = canSeeAllSteps ? null : shares.find((s) => s.shared_with_user_id === user?.id)
+  const steps = await getSteps(id, myShare?.step_ids ?? undefined)
+  const stepsFiltered = !!myShare?.step_ids?.length
 
   const fields = [
     { label: 'Tipo',         value: getProcessTypeLabel(process.type) },
@@ -118,8 +121,13 @@ export default async function ProcessDetailPage({ params }: { params: Promise<{ 
             <h3>Trilha de execução</h3>
             <span className="sub">{steps.length} etapa{steps.length !== 1 ? 's' : ''}</span>
           </div>
+          {stepsFiltered && (
+            <div style={{ padding: '8px 20px', background: 'var(--panel-alt)', borderBottom: '1px solid var(--line)', fontSize: 12, color: 'var(--muted)' }}>
+              Você tem acesso a {steps.length} etapa{steps.length !== 1 ? 's' : ''} deste processo.
+            </div>
+          )}
           <div className="card-b">
-            <StepTimeline steps={steps} />
+            <StepTimeline steps={steps} processId={process.id} canShare={canShare} />
           </div>
         </div>
       </div>

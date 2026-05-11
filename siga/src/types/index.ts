@@ -19,6 +19,7 @@ export interface ProcessShare {
   process_id: string
   shared_with_user_id: string
   shared_by_user_id: string
+  step_ids: string[] | null
   created_at: string
   profile?: Profile
 }
