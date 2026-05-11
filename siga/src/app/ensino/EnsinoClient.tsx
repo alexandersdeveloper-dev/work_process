@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
@@ -15,6 +16,44 @@ const TIPO_COLORS: Record<string, string> = {
   info:    'var(--accent)',
   warning: '#d97706',
   success: '#16a34a',
+}
+
+/* -------- Confirm Modal -------- */
+function ConfirmModal({ message, onConfirm, onCancel }: { message: string; onConfirm: () => void; onCancel: () => void }) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+  const handleKey = useCallback((e: KeyboardEvent) => { if (e.key === 'Escape') onCancel() }, [onCancel])
+  useEffect(() => {
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [handleKey])
+
+  if (!mounted) return null
+  return createPortal(
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, animation: 'modal-bg-in 0.15s ease both' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}
+    >
+      <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 8, width: '100%', maxWidth: 380, padding: 24, boxShadow: '0 24px 48px rgba(0,0,0,0.18)', animation: 'modal-panel-in 0.2s cubic-bezier(.34,1.56,.64,1) both' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 20 }}>
+          <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'color-mix(in srgb, var(--danger) 12%, transparent)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--danger)" strokeWidth="1.8" strokeLinecap="round">
+              <path d="M8 3v5M8 11h.01" /><circle cx="8" cy="8" r="6" />
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Confirmar exclusão</div>
+            <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>{message}</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button className="btn ghost sm" onClick={onCancel}>Cancelar</button>
+          <button className="btn sm" style={{ background: 'var(--danger)', color: '#fff', borderColor: 'var(--danger)' }} onClick={onConfirm}>Excluir</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
 }
 
 /* -------- Form -------- */
@@ -160,7 +199,10 @@ function EnsinoCard({ item, canManage, onEdit, onDelete }: {
 export default function EnsinoClient({ items, canManage }: { items: Ensino[]; canManage: boolean }) {
   const router = useRouter()
   const supabase = createClient()
-  const { user } = useUser()
+  const { user, profile } = useUser()
+
+  const [localItems, setLocalItems] = useState<Ensino[]>(items)
+  const serverItems = useRef(items)
 
   const [search, setSearch] = useState('')
   const [filterTipo, setFilterTipo] = useState<EnsinoTipo | 'Todos'>('Todos')
@@ -169,9 +211,10 @@ export default function EnsinoClient({ items, canManage }: { items: Ensino[]; ca
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [deleteError, setDeleteError] = useState('')
+  const [confirmId, setConfirmId] = useState<string | null>(null)
 
   const filtered = useMemo(() => {
-    return items.filter(i => {
+    return localItems.filter(i => {
       const matchTipo = filterTipo === 'Todos' || i.tipo === filterTipo
       const q = search.toLowerCase()
       const matchSearch = !q || i.title.toLowerCase().includes(q) || (i.objetivo ?? '').toLowerCase().includes(q) || (i.fonte ?? '').toLowerCase().includes(q)
@@ -180,8 +223,8 @@ export default function EnsinoClient({ items, canManage }: { items: Ensino[]; ca
   }, [items, search, filterTipo])
 
   async function handleSave(form: FormState) {
-    setSaving(true)
     setSaveError('')
+    const now = new Date().toISOString()
     const payload = {
       title: form.title.trim(),
       tipo: form.tipo,
@@ -189,28 +232,60 @@ export default function EnsinoClient({ items, canManage }: { items: Ensino[]; ca
       fonte: form.fonte.trim() || null,
       link: form.link.trim(),
       data_publicacao: form.data_publicacao || null,
-      updated_at: new Date().toISOString(),
+      updated_at: now,
     }
 
-    const { error } = editing
-      ? await supabase.from('ensino').update(payload).eq('id', editing.id)
-      : await supabase.from('ensino').insert({ ...payload, author_id: user!.id })
+    if (editing) {
+      // Optimistic update
+      setLocalItems(prev => prev.map(i => i.id === editing.id ? { ...i, ...payload } : i))
+      setShowForm(false)
+      setEditing(null)
 
-    setSaving(false)
-    if (error) {
-      setSaveError('Erro ao salvar. Tente novamente.')
-      return
+      const { error } = await supabase.from('ensino').update(payload).eq('id', editing.id)
+      if (error) {
+        setLocalItems(serverItems.current)
+        setSaveError('Erro ao salvar. Tente novamente.')
+      } else {
+        router.refresh()
+      }
+    } else {
+      const tempId = `temp-${Date.now()}`
+      const tempItem: Ensino = {
+        id: tempId,
+        ...payload,
+        objetivo: payload.objetivo,
+        fonte: payload.fonte,
+        data_publicacao: payload.data_publicacao,
+        author_id: user!.id,
+        created_at: now,
+        updated_at: now,
+        author: { id: user!.id, full_name: profile?.full_name ?? '', cargo: profile?.cargo ?? null, role: profile?.role ?? 'servidor', created_at: now, updated_at: now },
+      }
+
+      // Optimistic insert
+      setLocalItems(prev => [tempItem, ...prev])
+      setShowForm(false)
+
+      const { error } = await supabase.from('ensino').insert({ ...payload, author_id: user!.id })
+      if (error) {
+        setLocalItems(serverItems.current)
+        setSaveError('Erro ao salvar. Tente novamente.')
+        setShowForm(true)
+      } else {
+        router.refresh()
+      }
     }
-    setShowForm(false)
-    setEditing(null)
-    router.refresh()
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Excluir este item?')) return
+    setConfirmId(null)
     setDeleteError('')
+    const prev = localItems
+    setLocalItems(cur => cur.filter(i => i.id !== id))
+
     const { error } = await supabase.from('ensino').delete().eq('id', id)
     if (error) {
+      setLocalItems(prev)
       setDeleteError('Não foi possível excluir. Verifique sua permissão e tente novamente.')
       setTimeout(() => setDeleteError(''), 4000)
       return
@@ -253,7 +328,7 @@ export default function EnsinoClient({ items, canManage }: { items: Ensino[]; ca
             } : undefined}
             onSave={handleSave}
             onCancel={() => { setShowForm(false); setEditing(null); setSaveError('') }}
-            saving={saving}
+            saving={false}
           />
           {saveError && (
             <p style={{ color: 'var(--danger)', fontSize: 13, marginTop: 8 }}>{saveError}</p>
@@ -277,6 +352,14 @@ export default function EnsinoClient({ items, canManage }: { items: Ensino[]; ca
           </select>
         </div>
       </div>
+
+      {confirmId && (
+        <ConfirmModal
+          message="Esta ação não pode ser desfeita."
+          onConfirm={() => handleDelete(confirmId)}
+          onCancel={() => setConfirmId(null)}
+        />
+      )}
 
       {deleteError && (
         <div style={{
@@ -305,7 +388,7 @@ export default function EnsinoClient({ items, canManage }: { items: Ensino[]; ca
               item={item}
               canManage={canManage}
               onEdit={startEdit}
-              onDelete={handleDelete}
+              onDelete={(id) => setConfirmId(id)}
             />
           ))}
         </div>
