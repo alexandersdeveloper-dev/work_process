@@ -102,6 +102,37 @@ export interface Process {
 
 export type StepMarkState = 'neutral' | 'positive' | 'negative'
 
+export type EnsinoTipo = 'Lei' | 'Decreto' | 'Instrução Normativa' | 'Portaria' | 'Resolução' | 'Nota Técnica' | 'Manual' | 'Outro'
+
+export const ENSINO_TIPOS: EnsinoTipo[] = [
+  'Lei', 'Decreto', 'Instrução Normativa', 'Portaria', 'Resolução', 'Nota Técnica', 'Manual', 'Outro',
+]
+
+export const ENSINO_TIPO_KIND: Record<EnsinoTipo, string> = {
+  'Lei': 'info',
+  'Decreto': 'warning',
+  'Instrução Normativa': 'success',
+  'Portaria': 'info',
+  'Resolução': 'warning',
+  'Nota Técnica': 'success',
+  'Manual': 'info',
+  'Outro': '',
+}
+
+export interface Ensino {
+  id: string
+  title: string
+  tipo: EnsinoTipo
+  objetivo: string | null
+  fonte: string | null
+  link: string
+  data_publicacao: string | null
+  author_id: string
+  created_at: string
+  updated_at: string
+  author?: Profile
+}
+
 export interface Step {
   id: string
   process_id: string
