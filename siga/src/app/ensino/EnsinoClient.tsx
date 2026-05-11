@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { useUser } from '@/lib/user-context'
 import { ENSINO_TIPOS, ENSINO_TIPO_KIND } from '@/types'
 import type { Ensino, EnsinoTipo } from '@/types'
 
@@ -159,6 +160,7 @@ function EnsinoCard({ item, canManage, onEdit, onDelete }: {
 export default function EnsinoClient({ items, canManage }: { items: Ensino[]; canManage: boolean }) {
   const router = useRouter()
   const supabase = createClient()
+  const { user } = useUser()
 
   const [search, setSearch] = useState('')
   const [filterTipo, setFilterTipo] = useState<EnsinoTipo | 'Todos'>('Todos')
@@ -192,7 +194,7 @@ export default function EnsinoClient({ items, canManage }: { items: Ensino[]; ca
 
     const { error } = editing
       ? await supabase.from('ensino').update(payload).eq('id', editing.id)
-      : await supabase.from('ensino').insert(payload)
+      : await supabase.from('ensino').insert({ ...payload, author_id: user!.id })
 
     setSaving(false)
     if (error) {
