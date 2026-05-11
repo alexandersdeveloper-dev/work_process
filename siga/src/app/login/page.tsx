@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import LegalModal from './LegalModal'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -12,6 +13,7 @@ export default function LoginPage() {
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
   const [clock, setClock]       = useState('')
+  const [legal, setLegal]       = useState<'termos' | 'privacidade' | null>(null)
 
   useEffect(() => {
     function tick() {
@@ -147,11 +149,13 @@ export default function LoginPage() {
         </div>
 
         <div className="fp-foot">
-          <span>Termos de uso</span>
-          <span>Privacidade</span>
+          <span onClick={() => setLegal('termos')}>Termos de uso</span>
+          <span onClick={() => setLegal('privacidade')}>Privacidade</span>
           <span>Suporte</span>
         </div>
       </section>
+
+      <LegalModal type={legal} onClose={() => setLegal(null)} />
     </div>
   )
 }
