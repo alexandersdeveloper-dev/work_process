@@ -7,7 +7,7 @@ import { useUser } from '@/lib/user-context'
 
 export default function Sidebar() {
   const pathname = usePathname()
-  const { sidebarOpen, closeSidebar } = useShell()
+  const { sidebarOpen, closeSidebar, collapsed, toggleCollapsed } = useShell()
   const { profile } = useUser()
   const role = profile?.role
 
@@ -16,100 +16,84 @@ export default function Sidebar() {
     return exact ? pathname === href : pathname.startsWith(href)
   }
 
+  function item(href: string, label: string, icon: React.ReactNode) {
+    return (
+      <Link href={href} onClick={closeSidebar} title={collapsed ? label : undefined}>
+        <div className={`sb-item${active(href) ? ' active' : ''}`}>
+          {icon}
+          <span>{label}</span>
+        </div>
+      </Link>
+    )
+  }
+
   return (
     <>
       {sidebarOpen && <div className="sidebar-overlay" onClick={closeSidebar} />}
 
       <aside className={`sidebar${sidebarOpen ? ' open' : ''}`}>
+        {/* Brand */}
         <div className="sb-brand">
           <div className="sb-mark">WP</div>
           <div className="sb-brand-text">
             <div className="t1">Work Process</div>
             <div className="t2">Gestão de processos</div>
           </div>
+          <button
+            className="sb-toggle"
+            onClick={toggleCollapsed}
+            title={collapsed ? 'Expandir menu' : 'Retrair menu'}
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {collapsed
+                ? <path d="M6 3l5 5-5 5" />
+                : <path d="M10 3L5 8l5 5" />
+              }
+            </svg>
+          </button>
         </div>
 
         <nav className="sb-nav">
+          {/* Botão expandir — só visível quando colapsado, alinhado com os ícones */}
+          <button
+            className="sb-nav-toggle"
+            onClick={toggleCollapsed}
+            title="Expandir menu"
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 3l5 5-5 5" />
+            </svg>
+          </button>
+
           <div>
             <div className="sb-group-label">Principal</div>
-
-            <Link href="/" onClick={closeSidebar}>
-              <div className={`sb-item${active('/') ? ' active' : ''}`}>
-                <HomeIcon />
-                <span>Dashboard</span>
-              </div>
-            </Link>
-
-            <Link href="/processes" onClick={closeSidebar}>
-              <div className={`sb-item${active('/processes') ? ' active' : ''}`}>
-                <LayersIcon />
-                <span>Meus Processos</span>
-              </div>
-            </Link>
-
-            {role === 'servidor' && (
-              <Link href="/compartilhados" onClick={closeSidebar}>
-                <div className={`sb-item${active('/compartilhados') ? ' active' : ''}`}>
-                  <ShareIcon />
-                  <span>Compartilhados</span>
-                </div>
-              </Link>
-            )}
-
-            <Link href="/comunicados" onClick={closeSidebar}>
-              <div className={`sb-item${active('/comunicados') ? ' active' : ''}`}>
-                <MegaphoneIcon />
-                <span>Comunicado Institucional</span>
-              </div>
-            </Link>
-
-            <Link href="/calendario" onClick={closeSidebar}>
-              <div className={`sb-item${active('/calendario') ? ' active' : ''}`}>
-                <CalendarIcon />
-                <span>Calendário</span>
-              </div>
-            </Link>
+            {item('/', 'Dashboard', <HomeIcon />)}
+            {item('/processes', 'Meus Processos', <LayersIcon />)}
+            {role === 'servidor' && item('/compartilhados', 'Compartilhados', <ShareIcon />)}
+            {item('/comunicados', 'Comunicado Institucional', <MegaphoneIcon />)}
+            {item('/calendario', 'Calendário', <CalendarIcon />)}
           </div>
 
           {(role === 'chefe' || role === 'admin') && (
             <div style={{ marginTop: 16 }}>
               <div className="sb-group-label">Unidade</div>
-              <Link href="/unidade" onClick={closeSidebar}>
-                <div className={`sb-item${active('/unidade') ? ' active' : ''}`}>
-                  <BuildingIcon />
-                  <span>Dashboard da Unidade</span>
-                </div>
-              </Link>
-              <Link href="/unidade/processos" onClick={closeSidebar}>
-                <div className={`sb-item${active('/unidade/processos') ? ' active' : ''}`}>
-                  <LayersIcon />
-                  <span>Processos da Unidade</span>
-                </div>
-              </Link>
+              {item('/unidade', 'Dashboard da Unidade', <BuildingIcon />)}
+              {item('/unidade/processos', 'Processos da Unidade', <LayersIcon />)}
             </div>
           )}
 
           {role === 'admin' && (
             <div style={{ marginTop: 16 }}>
               <div className="sb-group-label">Administração</div>
-              <Link href="/admin" onClick={closeSidebar}>
-                <div className={`sb-item${active('/admin') ? ' active' : ''}`}>
-                  <ShieldIcon />
-                  <span>Painel Admin</span>
-                </div>
-              </Link>
-              <Link href="/admin/usuarios" onClick={closeSidebar}>
-                <div className={`sb-item${active('/admin/usuarios') ? ' active' : ''}`}>
-                  <UsersIcon />
-                  <span>Usuários</span>
-                </div>
-              </Link>
+              {item('/admin', 'Painel Admin', <ShieldIcon />)}
+              {item('/admin/usuarios', 'Usuários', <UsersIcon />)}
             </div>
           )}
         </nav>
 
+        {/* Footer */}
         <div className="sb-footer">
-          <div className="sb-avatar">
+          <div className="sb-avatar" title={collapsed ? (profile?.full_name ?? '') : undefined}>
             {profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : '?'}
           </div>
           <div className="who">

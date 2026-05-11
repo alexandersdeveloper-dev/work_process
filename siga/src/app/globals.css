@@ -66,6 +66,7 @@ a { color: inherit; text-decoration: none; }
   display: grid;
   grid-template-columns: 248px 1fr;
   min-height: 100vh;
+  transition: grid-template-columns 0.22s ease;
 }
 
 /* ------- Sidebar ------- */
@@ -78,7 +79,81 @@ a { color: inherit; text-decoration: none; }
   top: 0;
   height: 100vh;
   overflow: hidden;
+  width: 248px;
+  transition: width 0.22s ease;
 }
+
+/* Collapsed state — desktop only */
+.app.sidebar-collapsed .sidebar { width: 60px; }
+.app.sidebar-collapsed { grid-template-columns: 60px 1fr; }
+
+.app.sidebar-collapsed .sb-brand-text,
+.app.sidebar-collapsed .sb-group-label,
+.app.sidebar-collapsed .sb-item span,
+.app.sidebar-collapsed .sb-footer .who,
+.app.sidebar-collapsed .sb-collapse-label {
+  display: none;
+}
+
+/* Collapsed brand: WP centralizado sozinho, toggle some */
+.app.sidebar-collapsed .sb-brand {
+  justify-content: center;
+  padding: 22px 0;
+}
+.app.sidebar-collapsed .sb-toggle { display: none; }
+
+/* Botão de expandir no topo do nav (só aparece colapsado) */
+.sb-nav-toggle { display: none; }
+.app.sidebar-collapsed .sb-nav-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 8px 0;
+  margin-bottom: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  border-radius: 2px;
+  transition: background 0.12s, color 0.12s;
+}
+.app.sidebar-collapsed .sb-nav-toggle:hover { background: var(--panel-alt); color: var(--ink); }
+
+.app.sidebar-collapsed .sb-item {
+  justify-content: center;
+  padding: 10px 0;
+}
+
+.app.sidebar-collapsed .sb-footer {
+  justify-content: center;
+  padding: 14px 0;
+}
+
+.app.sidebar-collapsed .sb-nav {
+  padding: 16px 6px;
+}
+
+.app.sidebar-collapsed .sb-item.active::before {
+  top: 4px; bottom: 4px;
+}
+
+.sb-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s;
+}
+.sb-toggle:hover { background: var(--panel-alt); color: var(--ink); }
 .sb-brand {
   display: flex; align-items: center; gap: 12px;
   padding: 22px 20px 20px;
@@ -927,7 +1002,8 @@ table.t {
 }
 
 .cal-cell {
-  min-height: 60px;
+  height: 96px;
+  overflow: hidden;
   border-radius: 6px;
   cursor: default;
 }
@@ -943,13 +1019,13 @@ table.t {
   }
 
   .cal-cell {
-    min-height: 44px;
+    height: 72px;
     padding: 4px 5px !important;
   }
 }
 
 @media (max-width: 480px) {
   .cal-cell {
-    min-height: 36px;
+    height: 56px;
   }
 }

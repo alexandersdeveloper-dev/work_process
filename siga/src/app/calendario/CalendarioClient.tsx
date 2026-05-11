@@ -1,14 +1,16 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@/lib/user-context'
+import { useShell } from '@/components/shell/ShellProvider'
 import { canManageFolgas } from '@/lib/auth-guard'
 import { createClient } from '@/lib/supabase'
 import AusenciaDrawer from './AusenciaDrawer'
 import EditFolgaModal from './EditFolgaModal'
 import type { Folga } from '@/types'
+import type { ProcessDeadline } from './page'
 
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 const WEEKDAYS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
@@ -39,10 +41,20 @@ function folgasForDay(folgas: Folga[], key: string, currentUserId?: string): Fol
     })
 }
 
+const STATUS_LABEL: Record<string, string> = {
+  active: 'Ativo', in_progress: 'Em andamento', delayed: 'Atrasado',
+  pending: 'Pendente', on_hold: 'Pausado',
+}
+const PRIORITY_LABEL: Record<string, string> = {
+  low: 'Baixa', medium: 'Média', high: 'Alta', urgent: 'Urgente',
+}
+
 /* ---------- Popup de visualização ---------- */
-function DayPopup({ date, folgas, canManage, onClose, onEdit, onDelete }: {
+function DayPopup({ date, folgas, deadlines, todayKey, canManage, onClose, onEdit, onDelete }: {
   date: string
   folgas: Folga[]
+  deadlines: ProcessDeadline[]
+  todayKey: string
   canManage: boolean
   onClose: () => void
   onEdit: (f: Folga) => void
@@ -89,7 +101,10 @@ function DayPopup({ date, folgas, canManage, onClose, onEdit, onDelete }: {
           <div>
             <div style={{ fontWeight: 600, fontSize: 14, textTransform: 'capitalize' }}>{fmtLong(date)}</div>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-              {folgas.length} ausência{folgas.length !== 1 ? 's' : ''}
+              {[
+                folgas.length > 0 && `${folgas.length} ausência${folgas.length !== 1 ? 's' : ''}`,
+                deadlines.length > 0 && `${deadlines.length} prazo${deadlines.length !== 1 ? 's' : ''}`,
+              ].filter(Boolean).join(' · ')}
             </div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 18, lineHeight: 1, flexShrink: 0, marginLeft: 8 }}>✕</button>
@@ -97,6 +112,58 @@ function DayPopup({ date, folgas, canManage, onClose, onEdit, onDelete }: {
 
         {/* Lista rolável */}
         <div style={{ overflowY: 'auto', padding: '12px 20px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+          {/* Prazos de processos */}
+          {deadlines.length > 0 && (
+            <>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 2 }}>
+                Prazos
+              </div>
+              {deadlines.map((p) => {
+                const overdue = p.deadline < todayKey
+                return (
+                  <a
+                    key={p.id}
+                    href={`/processes/${p.id}`}
+                    onClick={onClose}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '8px 12px', borderRadius: 6, textDecoration: 'none',
+                      background: overdue ? 'rgba(239,68,68,0.07)' : 'rgba(59,130,246,0.07)',
+                      border: `1px solid ${overdue ? 'rgba(239,68,68,0.2)' : 'rgba(59,130,246,0.2)'}`,
+                      transition: 'background 0.12s',
+                    }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke={overdue ? '#ef4444' : '#3b82f6'} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                      <circle cx="8" cy="8" r="6" />
+                      <path d="M8 5v3.5l2.5 1.5" />
+                    </svg>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.title}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>
+                        {STATUS_LABEL[p.status] ?? p.status} · {PRIORITY_LABEL[p.priority] ?? p.priority}
+                        {overdue && <span style={{ color: '#ef4444', fontWeight: 600, marginLeft: 6 }}>Vencido</span>}
+                      </div>
+                    </div>
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="var(--muted)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                      <path d="M6 3l5 5-5 5" />
+                    </svg>
+                  </a>
+                )
+              })}
+              {folgas.length > 0 && (
+                <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
+              )}
+              {folgas.length > 0 && (
+                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 2 }}>
+                  Ausências
+                </div>
+              )}
+            </>
+          )}
+
           {folgas.map((f) => (
             <div key={f.id} style={{
               padding: '8px 12px', borderRadius: 6,
@@ -173,10 +240,12 @@ function DayPopup({ date, folgas, canManage, onClose, onEdit, onDelete }: {
 }
 
 /* ---------- Componente principal ---------- */
-export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
+export default function CalendarioClient({ folgas, deadlines }: { folgas: Folga[]; deadlines: ProcessDeadline[] }) {
   const { profile } = useUser()
   const canAdd = canManageFolgas(profile?.role)
   const router = useRouter()
+  const { collapsed, setCollapsed } = useShell()
+  const prevCollapsed = useRef(false)
 
   // Computado só no cliente para evitar hydration mismatch (servidor UTC vs browser local)
   const [todayKey, setTodayKey] = useState('')
@@ -191,6 +260,17 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
   const [popupDay, setPopupDay] = useState<string | null>(null)
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedDays, setSelectedDays] = useState<string[]>([])
+
+  // Auto-colapso da sidebar ao entrar no modo de seleção de dias
+  useEffect(() => {
+    if (selectionMode) {
+      prevCollapsed.current = collapsed
+      setCollapsed(true)
+    } else {
+      setCollapsed(prevCollapsed.current)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectionMode])
 
   function prevMonth() {
     if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11) }
@@ -335,12 +415,12 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
     )
   }
 
-  function handleDayClick(key: string, hasFolga: boolean) {
+  function handleDayClick(key: string, hasFolga: boolean, hasDeadline: boolean) {
     if (selectionMode) {
       toggleDay(key)
       return
     }
-    if (hasFolga) {
+    if (hasFolga || hasDeadline) {
       setPopupDay(key)
       return
     }
@@ -376,6 +456,18 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
     }
     return map
   }, [folgas])
+
+  // Pre-compute date→ProcessDeadline[] map
+  const deadlinesByDate = useMemo(() => {
+    const map = new Map<string, ProcessDeadline[]>()
+    for (const p of deadlines) {
+      const key = p.deadline.slice(0, 10)
+      const arr = map.get(key)
+      if (arr) arr.push(p)
+      else map.set(key, [p])
+    }
+    return map
+  }, [deadlines])
 
   const [editingFolga, setEditingFolga] = useState<Folga | null>(null)
 
@@ -438,23 +530,30 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
                   const dayFolgas = rawFolgas.length > 1 && profile?.id
                     ? [...rawFolgas].sort((a, b) => (a.user_id === profile.id ? -1 : b.user_id === profile.id ? 1 : 0))
                     : rawFolgas
+                  const dayDeadlines = deadlinesByDate.get(key) ?? []
                   const hasFolga = dayFolgas.length > 0
+                  const hasDeadline = dayDeadlines.length > 0
                   const isT = todayKey === key
                   const isSelected = selectedDays.includes(key)
-                  const isClickable = selectionMode || hasFolga || canAdd
+                  const isClickable = selectionMode || hasFolga || hasDeadline || canAdd
+
+                  const shownFolgas = dayFolgas.slice(0, 3)
+                  const shownDeadlines = dayDeadlines.slice(0, 2)
+                  const overflow = (dayFolgas.length - shownFolgas.length) + (dayDeadlines.length - shownDeadlines.length)
 
                   return (
                     <div
                       key={i}
-                      onClick={() => isClickable && handleDayClick(key, hasFolga)}
+                      onClick={() => isClickable && handleDayClick(key, hasFolga, hasDeadline)}
                       className="cal-cell"
                       style={{
                         padding: '6px 8px',
+                        position: 'relative',
                         background: isSelected
                           ? 'var(--accent)'
                           : isT
                           ? 'var(--panel-alt)'
-                          : hasFolga
+                          : hasFolga || hasDeadline
                           ? 'var(--panel-alt)'
                           : 'transparent',
                         border: isSelected
@@ -475,9 +574,9 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
                         {day}
                       </div>
 
-                      {!isSelected && dayFolgas.length > 0 && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                          {dayFolgas.slice(0, 5).map((f) => (
+                      {!isSelected && (hasFolga || hasDeadline) && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingBottom: overflow > 0 ? 14 : 0 }}>
+                          {shownFolgas.map((f) => (
                             <div key={f.id} style={{
                               fontSize: 10, borderRadius: 2, padding: '1px 5px',
                               background: f.type === 'ferias' ? '#16a34a' : '#d97706',
@@ -487,9 +586,34 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
                               {f.profile?.full_name ?? '—'}
                             </div>
                           ))}
-                          {dayFolgas.length > 5 && (
-                            <div style={{ fontSize: 10, color: 'var(--muted)' }}>+{dayFolgas.length - 5} mais</div>
-                          )}
+                          {shownDeadlines.map((p) => {
+                            const overdue = todayKey && p.deadline < todayKey
+                            return (
+                              <div key={p.id} style={{
+                                fontSize: 10, borderRadius: 2, padding: '1px 5px',
+                                background: overdue ? '#ef4444' : '#3b82f6',
+                                color: '#fff',
+                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                                display: 'flex', alignItems: 'center', gap: 3,
+                              }}>
+                                <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
+                                  <circle cx="8" cy="8" r="6" /><path d="M8 5v3.5l2 1.2" />
+                                </svg>
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {!isSelected && overflow > 0 && (
+                        <div style={{
+                          position: 'absolute', bottom: 4, left: 8, right: 8,
+                          fontSize: 10, color: 'var(--muted)',
+                          background: 'linear-gradient(to bottom, transparent, var(--panel-alt) 40%)',
+                          paddingTop: 6,
+                        }}>
+                          +{overflow} mais
                         </div>
                       )}
                     </div>
@@ -500,7 +624,7 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
 
             {/* Legenda + PDF */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid var(--line)' }}>
-              <div style={{ display: 'flex', gap: 16 }}>
+              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ width: 10, height: 10, borderRadius: 2, background: '#d97706', display: 'inline-block' }} />
                   <span style={{ fontSize: 11, color: 'var(--muted)' }}>Folga</span>
@@ -508,6 +632,10 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ width: 10, height: 10, borderRadius: 2, background: '#16a34a', display: 'inline-block' }} />
                   <span style={{ fontSize: 11, color: 'var(--muted)' }}>Férias</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 2, background: '#3b82f6', display: 'inline-block' }} />
+                  <span style={{ fontSize: 11, color: 'var(--muted)' }}>Prazo</span>
                 </div>
               </div>
               <button className="btn ghost sm" onClick={handlePrint} title="Baixar PDF do mês">
@@ -542,6 +670,8 @@ export default function CalendarioClient({ folgas }: { folgas: Folga[] }) {
               ? [...raw].sort((a, b) => (a.user_id === profile.id ? -1 : b.user_id === profile.id ? 1 : 0))
               : raw
           })()}
+          deadlines={deadlinesByDate.get(popupDay) ?? []}
+          todayKey={todayKey}
           canManage={canAdd}
           onClose={closePopup}
           onEdit={(f) => { setEditingFolga(f); setPopupDay(null) }}

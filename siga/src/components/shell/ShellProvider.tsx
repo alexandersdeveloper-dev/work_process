@@ -8,6 +8,9 @@ interface ShellCtx {
   sidebarOpen: boolean
   toggleSidebar: () => void
   closeSidebar: () => void
+  collapsed: boolean
+  setCollapsed: (v: boolean) => void
+  toggleCollapsed: () => void
 }
 
 const Ctx = createContext<ShellCtx>({} as ShellCtx)
@@ -17,6 +20,7 @@ export function useShell() { return useContext(Ctx) }
 export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [collapsed, setCollapsedState] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('siga_theme') as 'light' | 'dark' | null
@@ -24,6 +28,9 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     const initial = saved ?? preferred
     setTheme(initial)
     document.documentElement.setAttribute('data-theme', initial)
+
+    const savedCollapsed = localStorage.getItem('siga_sidebar_collapsed')
+    if (savedCollapsed === 'true') setCollapsedState(true)
   }, [])
 
   const toggleTheme = useCallback(() => {
@@ -35,11 +42,24 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     })
   }, [])
 
+  const setCollapsed = useCallback((v: boolean) => {
+    setCollapsedState(v)
+    localStorage.setItem('siga_sidebar_collapsed', String(v))
+  }, [])
+
+  const toggleCollapsed = useCallback(() => {
+    setCollapsedState((prev) => {
+      const next = !prev
+      localStorage.setItem('siga_sidebar_collapsed', String(next))
+      return next
+    })
+  }, [])
+
   const toggleSidebar = useCallback(() => setSidebarOpen((o) => !o), [])
   const closeSidebar = useCallback(() => setSidebarOpen(false), [])
 
   return (
-    <Ctx.Provider value={{ theme, toggleTheme, sidebarOpen, toggleSidebar, closeSidebar }}>
+    <Ctx.Provider value={{ theme, toggleTheme, sidebarOpen, toggleSidebar, closeSidebar, collapsed, setCollapsed, toggleCollapsed }}>
       {children}
     </Ctx.Provider>
   )

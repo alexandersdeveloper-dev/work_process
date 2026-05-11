@@ -97,7 +97,7 @@ export default async function ProcessDetailPage({ params }: { params: Promise<{ 
       </div>
 
       {shares.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: -8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12, color: 'var(--muted)' }}>Compartilhado com:</span>
           {shares.map((s) => (
             <span key={s.id} style={{
