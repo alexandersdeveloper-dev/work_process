@@ -165,6 +165,8 @@ export default function EnsinoClient({ items, canManage }: { items: Ensino[]; ca
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Ensino | null>(null)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const [deleteError, setDeleteError] = useState('')
 
   const filtered = useMemo(() => {
     return items.filter(i => {
@@ -177,6 +179,7 @@ export default function EnsinoClient({ items, canManage }: { items: Ensino[]; ca
 
   async function handleSave(form: FormState) {
     setSaving(true)
+    setSaveError('')
     const payload = {
       title: form.title.trim(),
       tipo: form.tipo,
@@ -187,13 +190,15 @@ export default function EnsinoClient({ items, canManage }: { items: Ensino[]; ca
       updated_at: new Date().toISOString(),
     }
 
-    if (editing) {
-      await supabase.from('ensino').update(payload).eq('id', editing.id)
-    } else {
-      await supabase.from('ensino').insert(payload)
-    }
+    const { error } = editing
+      ? await supabase.from('ensino').update(payload).eq('id', editing.id)
+      : await supabase.from('ensino').insert(payload)
 
     setSaving(false)
+    if (error) {
+      setSaveError('Erro ao salvar. Tente novamente.')
+      return
+    }
     setShowForm(false)
     setEditing(null)
     router.refresh()
@@ -201,7 +206,13 @@ export default function EnsinoClient({ items, canManage }: { items: Ensino[]; ca
 
   async function handleDelete(id: string) {
     if (!confirm('Excluir este item?')) return
-    await supabase.from('ensino').delete().eq('id', id)
+    setDeleteError('')
+    const { error } = await supabase.from('ensino').delete().eq('id', id)
+    if (error) {
+      setDeleteError('Não foi possível excluir. Verifique sua permissão e tente novamente.')
+      setTimeout(() => setDeleteError(''), 4000)
+      return
+    }
     router.refresh()
   }
 
@@ -239,9 +250,12 @@ export default function EnsinoClient({ items, canManage }: { items: Ensino[]; ca
               data_publicacao: editing.data_publicacao ?? '',
             } : undefined}
             onSave={handleSave}
-            onCancel={() => { setShowForm(false); setEditing(null) }}
+            onCancel={() => { setShowForm(false); setEditing(null); setSaveError('') }}
             saving={saving}
           />
+          {saveError && (
+            <p style={{ color: 'var(--danger)', fontSize: 13, marginTop: 8 }}>{saveError}</p>
+          )}
         </div>
       )}
 
@@ -261,6 +275,21 @@ export default function EnsinoClient({ items, canManage }: { items: Ensino[]; ca
           </select>
         </div>
       </div>
+
+      {deleteError && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '10px 14px', marginBottom: 12,
+          background: 'color-mix(in srgb, var(--danger) 10%, transparent)',
+          border: '1px solid color-mix(in srgb, var(--danger) 30%, transparent)',
+          borderRadius: 6, fontSize: 13, color: 'var(--danger)',
+        }}>
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+            <circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/>
+          </svg>
+          {deleteError}
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <div className="empty">
