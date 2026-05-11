@@ -13,11 +13,21 @@ export type ProcessDeadline = {
   deadline: string
 }
 
-async function getFolgas(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>): Promise<Folga[]> {
-  const { data } = await supabase
+async function getFolgas(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  uid: string,
+  role: string,
+): Promise<Folga[]> {
+  let query = supabase
     .from('folgas')
     .select('id, user_id, date, end_date, type, description, registered_by, created_at, profile:profiles!folgas_user_id_fkey(id, full_name, cargo)')
     .order('date', { ascending: true })
+
+  if (role === 'servidor') {
+    query = query.eq('user_id', uid)
+  }
+
+  const { data } = await query
   return (data as unknown as Folga[]) ?? []
 }
 
@@ -59,7 +69,7 @@ export default async function CalendarioPage() {
   const role = (profileData as { role: string } | null)?.role ?? 'servidor'
 
   const [folgas, deadlines] = await Promise.all([
-    getFolgas(supabase),
+    getFolgas(supabase, uid, role),
     getDeadlines(supabase, uid, role),
   ])
 

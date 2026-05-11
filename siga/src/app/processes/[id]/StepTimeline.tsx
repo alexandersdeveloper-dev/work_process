@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import type { Step } from '@/types'
+import type { Step, StepMarkState } from '@/types'
 import DateTimePicker from '@/components/DateTimePicker'
 
 const LS_KEY = 'siga_step_types'
@@ -45,9 +45,18 @@ interface EditState {
   datetime: string
 }
 
+const MARK_CYCLE: StepMarkState[] = ['neutral', 'positive', 'negative']
+
 function StepItem({ step, isLast, onSaved }: { step: Step; isLast: boolean; onSaved: () => void }) {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [markState, setMarkState] = useState<StepMarkState>(step.mark_state ?? 'neutral')
+
+  async function handleMarkClick() {
+    const next = MARK_CYCLE[(MARK_CYCLE.indexOf(markState) + 1) % MARK_CYCLE.length]
+    setMarkState(next)
+    await supabase.from('steps').update({ mark_state: next }).eq('id', step.id)
+  }
   const [types, setTypes] = useState<string[]>([])
   const [addingType, setAddingType] = useState(false)
   const [newType, setNewType] = useState('')
@@ -166,8 +175,12 @@ function StepItem({ step, isLast, onSaved }: { step: Step; isLast: boolean; onSa
 
   return (
     <div className="tl-item" style={{ position: 'relative' }}>
-      <div className={`tl-mark${isLast ? ' accent' : ' done'}`}>
-        {isLast ? '●' : '✓'}
+      <div
+        className={`tl-mark clickable${markState === 'positive' ? ' done' : markState === 'negative' ? ' negative' : ' accent'}`}
+        onClick={handleMarkClick}
+        title={markState === 'neutral' ? 'Marcar como positivo' : markState === 'positive' ? 'Marcar como negativo' : 'Remover marcação'}
+      >
+        {markState === 'positive' ? '✓' : markState === 'negative' ? '✗' : '●'}
       </div>
       <div className="tl-body" style={{ flex: 1 }}>
         <div className="tl-t" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -187,11 +200,11 @@ function StepItem({ step, isLast, onSaved }: { step: Step; isLast: boolean; onSa
         </div>
         {step.description && <div className="tl-d">{step.description}</div>}
         {step.reference_link && <div className="tl-link">{step.reference_link}</div>}
-        <div className="tl-m">
+        <div className="tl-m" suppressHydrationWarning>
           {step.performed_by ? `${step.performed_by} · ` : ''}
           {formatDateTime(step.created_at)}
           {isEdited && step.updated_at && (
-            <span style={{ marginLeft: 8, color: 'var(--muted-2)' }}>
+            <span style={{ marginLeft: 8, color: 'var(--muted-2)' }} suppressHydrationWarning>
               · editado {formatDateTime(step.updated_at)}
             </span>
           )}

@@ -672,6 +672,9 @@ table.t {
 }
 .tl-mark.done { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .tl-mark.accent { border-color: var(--accent); color: var(--accent); }
+.tl-mark.negative { background: var(--danger); color: #fff; border-color: var(--danger); }
+.tl-mark.clickable { cursor: pointer; transition: transform 0.12s, opacity 0.12s; user-select: none; }
+.tl-mark.clickable:hover { opacity: 0.75; transform: scale(1.1); }
 .tl-body .tl-t { font-size: 13px; font-weight: 500; }
 .tl-body .tl-type {
   display: inline-block;

@@ -99,7 +99,7 @@ export default function Sidebar() {
           <div className="who">
             <div className="n">{profile?.full_name || 'Usuário'}</div>
             <div className="r" style={{ textTransform: 'capitalize' }}>
-              {role === 'admin' ? 'Administrador' : role === 'chefe' ? 'Chefe' : 'Servidor'}
+              {profile?.cargo || (role === 'admin' ? 'Administrador' : role === 'chefe' ? 'Chefe' : 'Servidor')}
             </div>
           </div>
         </div>

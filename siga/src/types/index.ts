@@ -99,6 +99,8 @@ export interface Process {
   shares?: ProcessShare[]
 }
 
+export type StepMarkState = 'neutral' | 'positive' | 'negative'
+
 export interface Step {
   id: string
   process_id: string
@@ -107,6 +109,7 @@ export interface Step {
   step_type: string | null
   performed_by: string | null
   reference_link: string | null
+  mark_state: StepMarkState | null
   created_at: string
   updated_at: string | null
 }
