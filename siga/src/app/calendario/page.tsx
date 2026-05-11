@@ -26,6 +26,7 @@ async function getFolgas(
   if (role === 'servidor') {
     query = query.eq('user_id', uid)
   }
+  // assistente, chefe e admin: sem filtro — veem todas as folgas da equipe
 
   const { data } = await query
   return (data as unknown as Folga[]) ?? []

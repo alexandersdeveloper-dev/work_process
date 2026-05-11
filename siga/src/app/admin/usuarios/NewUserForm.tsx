@@ -6,7 +6,7 @@ import { ROLE_LABELS } from '@/lib/auth-guard'
 import { validatePassword } from '@/lib/password-policy'
 import type { UserRole } from '@/types'
 
-const ROLES: UserRole[] = ['admin', 'chefe', 'servidor']
+const ROLES: UserRole[] = ['admin', 'chefe', 'assistente', 'servidor']
 
 export default function NewUserForm({ onSuccess, onCancel }: { onSuccess?: () => void; onCancel?: () => void } = {}) {
   const router = useRouter()

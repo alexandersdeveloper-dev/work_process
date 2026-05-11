@@ -7,7 +7,7 @@ import { ROLE_LABELS } from '@/lib/auth-guard'
 import { validatePassword } from '@/lib/password-policy'
 import type { Profile, UserRole } from '@/types'
 
-const ROLES: UserRole[] = ['admin', 'chefe', 'servidor']
+const ROLES: UserRole[] = ['admin', 'chefe', 'assistente', 'servidor']
 
 export default function EditUserForm({
   profile,

@@ -3,7 +3,7 @@
 export type ProcessType = string
 export type StepType = string
 
-export type UserRole = 'admin' | 'chefe' | 'servidor'
+export type UserRole = 'admin' | 'chefe' | 'assistente' | 'servidor'
 
 export interface Profile {
   id: string

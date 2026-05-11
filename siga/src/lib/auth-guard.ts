@@ -19,5 +19,6 @@ export function canManageFolgas(role: UserRole | null | undefined): boolean {
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Administrador',
   chefe: 'Chefe',
+  assistente: 'Assistente',
   servidor: 'Servidor',
 }

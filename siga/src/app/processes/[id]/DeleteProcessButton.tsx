@@ -30,7 +30,6 @@ export default function DeleteProcessButton({ id }: { id: string }) {
     const { error: err } = await supabase.from('processes').delete().eq('id', id)
     if (err) { setError(err.message); setLoading(false); return }
     router.push('/processes')
-    router.refresh()
   }
 
   return (

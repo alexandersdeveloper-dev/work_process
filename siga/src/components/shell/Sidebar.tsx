@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useShell } from './ShellProvider'
 import { useUser } from '@/lib/user-context'
+import { ROLE_LABELS } from '@/lib/auth-guard'
+import type { UserRole } from '@/types'
 
 export default function Sidebar() {
   const pathname = usePathname()
@@ -69,7 +71,7 @@ export default function Sidebar() {
             <div className="sb-group-label">Principal</div>
             {item('/', 'Dashboard', <HomeIcon />)}
             {item('/processes', 'Meus Processos', <LayersIcon />)}
-            {role === 'servidor' && item('/compartilhados', 'Compartilhados', <ShareIcon />)}
+            {(role === 'servidor' || role === 'assistente') && item('/compartilhados', 'Compartilhados', <ShareIcon />)}
             {item('/comunicados', 'Comunicado Institucional', <MegaphoneIcon />)}
             {item('/calendario', 'Calendário', <CalendarIcon />)}
           </div>
@@ -99,7 +101,7 @@ export default function Sidebar() {
           <div className="who">
             <div className="n">{profile?.full_name || 'Usuário'}</div>
             <div className="r" style={{ textTransform: 'capitalize' }}>
-              {profile?.cargo || (role === 'admin' ? 'Administrador' : role === 'chefe' ? 'Chefe' : 'Servidor')}
+              {profile?.cargo || ROLE_LABELS[role as UserRole] || 'Servidor'}
             </div>
           </div>
         </div>
