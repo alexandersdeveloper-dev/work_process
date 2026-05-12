@@ -25,7 +25,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     const supabase = createClient()
     const { data } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, full_name, role, cargo, avatar_url')
       .eq('id', uid)
       .single()
     setProfile((data as Profile) ?? null)
@@ -47,12 +47,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     init()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event: AuthChangeEvent, session: Session | null) => {
+      (event: AuthChangeEvent, session: Session | null) => {
         const u = session?.user ?? null
         setUser(u)
-        if (u) {
+        if (u && event !== 'TOKEN_REFRESHED') {
           loadProfile(u.id)
-        } else {
+        } else if (!u) {
           setProfile(null)
         }
       }

@@ -28,30 +28,35 @@ export default function DeadlineNotifier({ userId }: Props) {
       if (!processes || processes.length === 0) return
 
       const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
+      const processIds = (processes as { id: string; title: string; deadline: string }[]).map(p => p.id)
 
-      for (const p of processes as { id: string; title: string; deadline: string }[]) {
-        // verificar se já foi enviada notificação nas últimas 24h para este processo
-        const { data: existing } = await supabase
-          .from('notifications')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('type', 'deadline_soon')
-          .eq('related_id', p.id)
-          .gte('created_at', yesterday)
-          .limit(1)
+      // 1 query para buscar todas as notificações recentes de uma vez
+      const { data: existing } = await supabase
+        .from('notifications')
+        .select('related_id')
+        .eq('user_id', userId)
+        .eq('type', 'deadline_soon')
+        .in('related_id', processIds)
+        .gte('created_at', yesterday)
 
-        if (existing && existing.length > 0) continue
+      const notifiedIds = new Set((existing ?? []).map((n: { related_id: string }) => n.related_id))
 
-        const days = Math.ceil((new Date(p.deadline).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-        await supabase.from('notifications').insert({
-          user_id: userId,
-          type: 'deadline_soon',
-          title: 'Prazo se aproximando',
-          body: `"${p.title}" vence em ${days <= 0 ? 'hoje' : `${days} dia${days !== 1 ? 's' : ''}`}.`,
-          related_id: p.id,
-          related_type: 'process',
-        })
-      }
+      // Inserts paralelos apenas para os processos ainda não notificados
+      await Promise.all(
+        (processes as { id: string; title: string; deadline: string }[])
+          .filter(p => !notifiedIds.has(p.id))
+          .map(p => {
+            const days = Math.ceil((new Date(p.deadline).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+            return supabase.from('notifications').insert({
+              user_id: userId,
+              type: 'deadline_soon',
+              title: 'Prazo se aproximando',
+              body: `"${p.title}" vence em ${days <= 0 ? 'hoje' : `${days} dia${days !== 1 ? 's' : ''}`}.`,
+              related_id: p.id,
+              related_type: 'process',
+            })
+          })
+      )
     }
 
     check()

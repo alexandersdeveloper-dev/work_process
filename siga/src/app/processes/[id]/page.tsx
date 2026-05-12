@@ -13,13 +13,21 @@ import ShareModal from './ShareModal'
 
 async function getProcess(id: string): Promise<Process | null> {
   const supabase = await createServerSupabaseClient()
-  const { data } = await supabase.from('processes').select('*').eq('id', id).single()
+  const { data } = await supabase
+    .from('processes')
+    .select('id, title, description, type, status, priority, responsible, portal_section, deadline, created_at, updated_at, owner_id')
+    .eq('id', id)
+    .single()
   return data
 }
 
 async function getSteps(processId: string, stepIds?: string[]): Promise<Step[]> {
   const supabase = await createServerSupabaseClient()
-  let query = supabase.from('steps').select('*').eq('process_id', processId).order('created_at', { ascending: true })
+  let query = supabase
+    .from('steps')
+    .select('id, title, description, step_type, performed_by, reference_link, created_at, updated_at, mark_state, process_id')
+    .eq('process_id', processId)
+    .order('created_at', { ascending: true })
   if (stepIds && stepIds.length > 0) query = query.in('id', stepIds)
   const { data } = await query
   return data ?? []
@@ -29,9 +37,9 @@ async function getShares(processId: string): Promise<ProcessShare[]> {
   const supabase = await createServerSupabaseClient()
   const { data } = await supabase
     .from('process_shares')
-    .select('*, profile:profiles!process_shares_shared_with_user_id_fkey(*)')
+    .select('id, process_id, shared_with_user_id, shared_by_user_id, step_ids, created_at, profile:profiles!process_shares_shared_with_user_id_fkey(full_name)')
     .eq('process_id', processId)
-  return (data as ProcessShare[]) ?? []
+  return (data as unknown as ProcessShare[]) ?? []
 }
 
 function formatDate(iso: string) {

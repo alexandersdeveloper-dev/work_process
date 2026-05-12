@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
+import { useUserTypes } from '@/lib/use-user-types'
 import DateTimePicker from '@/components/DateTimePicker'
 
 const STEP_TYPE_LIMIT = 15
@@ -20,7 +21,7 @@ export default function AddStepForm({ processId, onSuccess }: { processId: strin
   const router = useRouter()
   const { user } = useUser()
 
-  const [customTypes, setCustomTypes] = useState<string[]>([])
+  const { customTypes, addType } = useUserTypes('user_step_types')
   const [stepType, setStepType]       = useState('Nota')
   const [adding, setAdding]           = useState(false)
   const [newType, setNewType]         = useState('')
@@ -38,19 +39,6 @@ export default function AddStepForm({ processId, onSuccess }: { processId: strin
   const allTypes = [...DEFAULT_TYPES, ...customTypes]
   const atLimit  = allTypes.length >= STEP_TYPE_LIMIT
   const remaining = STEP_TYPE_LIMIT - allTypes.length
-
-  useEffect(() => {
-    if (!user) return
-    async function load() {
-      const { data } = await supabase
-        .from('user_step_types')
-        .select('label')
-        .eq('user_id', user!.id)
-        .order('created_at', { ascending: true })
-      if (data) setCustomTypes(data.map((r) => r.label))
-    }
-    load()
-  }, [user])
 
   useEffect(() => {
     if (adding) newTypeInputRef.current?.focus()
@@ -79,7 +67,7 @@ export default function AddStepForm({ processId, onSuccess }: { processId: strin
       .insert({ user_id: user.id, label: trimmed })
 
     if (!err) {
-      setCustomTypes((prev) => [...prev, trimmed])
+      addType(trimmed)
       setStepType(trimmed)
     }
     setAdding(false)

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
+import { useUserTypes } from '@/lib/use-user-types'
 import type { Process, ProcessStatus, Priority } from '@/types'
 
 const PROCESS_TYPE_LIMIT = 15
@@ -51,7 +52,7 @@ export default function ProcessForm({ process }: Props) {
   const { user } = useUser()
   const isEdit = !!process
 
-  const [customTypes, setCustomTypes] = useState<string[]>([])
+  const { customTypes, addType } = useUserTypes('user_process_types')
   const [addingType, setAddingType]   = useState(false)
   const [newType, setNewType]         = useState('')
   const [typeError, setTypeError]     = useState('')
@@ -81,19 +82,6 @@ export default function ProcessForm({ process }: Props) {
   const remaining = PROCESS_TYPE_LIMIT - allTypes.length
 
   useEffect(() => {
-    if (!user) return
-    async function load() {
-      const { data } = await supabase
-        .from('user_process_types')
-        .select('label')
-        .eq('user_id', user!.id)
-        .order('created_at', { ascending: true })
-      if (data) setCustomTypes(data.map((r) => r.label))
-    }
-    load()
-  }, [user])
-
-  useEffect(() => {
     if (addingType) newTypeRef.current?.focus()
   }, [addingType])
 
@@ -120,7 +108,7 @@ export default function ProcessForm({ process }: Props) {
       .insert({ user_id: user.id, label: trimmed })
 
     if (!err) {
-      setCustomTypes((prev) => [...prev, trimmed])
+      addType(trimmed)
       setType(trimmed)
     }
     setAddingType(false)

@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
 import type { AppNotification } from '@/types'
 
+const supabase = createClient()
+
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
   const m = Math.floor(diff / 60000)
@@ -81,7 +83,6 @@ const TYPE_ICON_MAP: Record<string, () => React.ReactElement> = {
 export default function NotificationBell() {
   const { user } = useUser()
   const router = useRouter()
-  const supabase = createClient()
   const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -92,7 +93,7 @@ export default function NotificationBell() {
     if (!user) return
     const { data } = await supabase
       .from('notifications')
-      .select('*')
+      .select('id, title, body, type, read, related_id, related_type, created_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(20)

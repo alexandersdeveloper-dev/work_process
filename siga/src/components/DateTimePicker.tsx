@@ -27,15 +27,12 @@ function formatDisplay(d: Date) {
 }
 
 export default function DateTimePicker({ value, onChange, maxNow = false, placeholder = 'Selecionar data e hora…' }: Props) {
-  const now = new Date()
-  const initial = parseISO(value) ?? now
-
   const [open, setOpen] = useState(false)
-  const [viewYear, setViewYear] = useState(initial.getFullYear())
-  const [viewMonth, setViewMonth] = useState(initial.getMonth())
+  const [viewYear, setViewYear] = useState(() => { const d = parseISO(value) ?? new Date(); return d.getFullYear() })
+  const [viewMonth, setViewMonth] = useState(() => { const d = parseISO(value) ?? new Date(); return d.getMonth() })
   const [selected, setSelected] = useState<Date | null>(parseISO(value))
-  const [hour, setHour] = useState(pad(initial.getHours()))
-  const [minute, setMinute] = useState(pad(initial.getMinutes()))
+  const [hour, setHour] = useState(() => { const d = parseISO(value) ?? new Date(); return pad(d.getHours()) })
+  const [minute, setMinute] = useState(() => { const d = parseISO(value) ?? new Date(); return pad(d.getMinutes()) })
   const modalRef = useRef<HTMLDivElement>(null)
 
   const close = useCallback(() => setOpen(false), [])
@@ -80,6 +77,7 @@ export default function DateTimePicker({ value, onChange, maxNow = false, placeh
 
   function confirm() {
     if (!selected) return
+    const now = new Date()
     const d = new Date(selected)
     d.setHours(parseInt(hour) || 0, parseInt(minute) || 0, 0, 0)
     if (maxNow && d > now) d.setTime(now.getTime())
@@ -95,6 +93,7 @@ export default function DateTimePicker({ value, onChange, maxNow = false, placeh
 
   function isDisabled(day: number) {
     if (!maxNow) return false
+    const now = new Date()
     const cellDay = new Date(viewYear, viewMonth, day)
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     return cellDay > todayStart
@@ -106,6 +105,7 @@ export default function DateTimePicker({ value, onChange, maxNow = false, placeh
   }
 
   function isToday(day: number) {
+    const now = new Date()
     return now.getDate() === day && now.getMonth() === viewMonth && now.getFullYear() === viewYear
   }
 

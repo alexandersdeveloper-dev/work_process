@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback, memo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
+import { useUserTypes } from '@/lib/use-user-types'
 import type { Step, StepMarkState } from '@/types'
 import StepShareModal from './StepShareModal'
 import DateTimePicker from '@/components/DateTimePicker'
@@ -54,7 +55,7 @@ interface StepItemProps {
   onTypeAdded: (label: string) => void
 }
 
-function StepItem({ step, isLast, onSaved, processId, canShare, allTypes, atLimit, userId, onTypeAdded }: StepItemProps) {
+const StepItem = memo(function StepItem({ step, isLast, onSaved, processId, canShare, allTypes, atLimit, userId, onTypeAdded }: StepItemProps) {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [markState, setMarkState] = useState<StepMarkState>(step.mark_state ?? 'neutral')
@@ -285,28 +286,18 @@ function StepItem({ step, isLast, onSaved, processId, canShare, allTypes, atLimi
       </div>
     </div>
   )
-}
+})
 
 export default function StepTimeline({ steps, processId, canShare }: { steps: Step[]; processId: string; canShare: boolean }) {
   const router = useRouter()
   const { user } = useUser()
-  const [customTypes, setCustomTypes] = useState<string[]>([])
+  const { customTypes, addType } = useUserTypes('user_step_types')
 
   const allTypes = [...DEFAULT_STEP_TYPES, ...customTypes]
   const atLimit = allTypes.length >= STEP_TYPE_LIMIT
 
-  useEffect(() => {
-    if (!user) return
-    async function load() {
-      const { data } = await supabase
-        .from('user_step_types')
-        .select('label')
-        .eq('user_id', user!.id)
-        .order('created_at', { ascending: true })
-      if (data) setCustomTypes(data.map((r) => r.label))
-    }
-    load()
-  }, [user])
+  const handleSaved = useCallback(() => router.refresh(), [router])
+  const handleTypeAdded = useCallback((label: string) => addType(label), [addType])
 
   if (steps.length === 0) {
     return (
@@ -323,13 +314,13 @@ export default function StepTimeline({ steps, processId, canShare }: { steps: St
           key={step.id}
           step={step}
           isLast={i === steps.length - 1}
-          onSaved={() => router.refresh()}
+          onSaved={handleSaved}
           processId={processId}
           canShare={canShare}
           allTypes={allTypes}
           atLimit={atLimit}
           userId={user?.id ?? ''}
-          onTypeAdded={(label) => setCustomTypes((prev) => [...prev, label])}
+          onTypeAdded={handleTypeAdded}
         />
       ))}
     </div>
