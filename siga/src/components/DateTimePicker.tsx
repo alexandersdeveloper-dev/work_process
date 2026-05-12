@@ -82,6 +82,7 @@ export default function DateTimePicker({ value, onChange, maxNow = false, placeh
     if (!selected) return
     const d = new Date(selected)
     d.setHours(parseInt(hour) || 0, parseInt(minute) || 0, 0, 0)
+    if (maxNow && d > now) d.setTime(now.getTime())
     onChange(d.toISOString())
     close()
   }
@@ -94,7 +95,9 @@ export default function DateTimePicker({ value, onChange, maxNow = false, placeh
 
   function isDisabled(day: number) {
     if (!maxNow) return false
-    return new Date(viewYear, viewMonth, day, 23, 59) > now
+    const cellDay = new Date(viewYear, viewMonth, day)
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    return cellDay > todayStart
   }
 
   function isSelected(day: number) {

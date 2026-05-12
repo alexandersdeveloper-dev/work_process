@@ -3,20 +3,23 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useUser } from '@/lib/user-context'
 import type { Step, StepMarkState } from '@/types'
 import StepShareModal from './StepShareModal'
 import DateTimePicker from '@/components/DateTimePicker'
 
-const LS_KEY = 'siga_step_types'
+const STEP_TYPE_LIMIT = 15
 
-function loadTypes(): string[] {
-  if (typeof window === 'undefined') return []
-  try {
-    const stored = localStorage.getItem(LS_KEY)
-    if (stored) return JSON.parse(stored)
-  } catch {}
-  return ['Nota', 'Atualização', 'Solicitação enviada', 'Resposta recebida', 'Publicação feita', 'Verificação', 'Bug reportado', 'Bug corrigido']
-}
+const DEFAULT_STEP_TYPES = [
+  'Nota',
+  'Atualização',
+  'Solicitação enviada',
+  'Resposta recebida',
+  'Publicação feita',
+  'Verificação',
+  'Bug reportado',
+  'Bug corrigido',
+]
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString('pt-BR', {
@@ -27,12 +30,6 @@ function formatDateTime(iso: string) {
 
 function toLocalDatetimeValue(iso: string) {
   const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-function toNowLocal() {
-  const d = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
@@ -48,19 +45,25 @@ interface EditState {
 
 const MARK_CYCLE: StepMarkState[] = ['neutral', 'positive', 'negative']
 
-function StepItem({ step, isLast, onSaved, processId, canShare }: { step: Step; isLast: boolean; onSaved: () => void; processId: string; canShare: boolean }) {
+interface StepItemProps {
+  step: Step
+  isLast: boolean
+  onSaved: () => void
+  processId: string
+  canShare: boolean
+  allTypes: string[]
+  atLimit: boolean
+  userId: string
+  onTypeAdded: (label: string) => void
+}
+
+function StepItem({ step, isLast, onSaved, processId, canShare, allTypes, atLimit, userId, onTypeAdded }: StepItemProps) {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [markState, setMarkState] = useState<StepMarkState>(step.mark_state ?? 'neutral')
-
-  async function handleMarkClick() {
-    const next = MARK_CYCLE[(MARK_CYCLE.indexOf(markState) + 1) % MARK_CYCLE.length]
-    setMarkState(next)
-    await supabase.from('steps').update({ mark_state: next }).eq('id', step.id)
-  }
-  const [types, setTypes] = useState<string[]>([])
   const [addingType, setAddingType] = useState(false)
   const [newType, setNewType] = useState('')
+  const [typeError, setTypeError] = useState('')
   const newTypeRef = useRef<HTMLInputElement>(null)
 
   const [form, setForm] = useState<EditState>({
@@ -72,19 +75,41 @@ function StepItem({ step, isLast, onSaved, processId, canShare }: { step: Step; 
     datetime: toLocalDatetimeValue(step.created_at),
   })
 
-  useEffect(() => { setTypes(loadTypes()) }, [])
   useEffect(() => { if (addingType) newTypeRef.current?.focus() }, [addingType])
 
-  function confirmNewType() {
+  async function handleMarkClick() {
+    const next = MARK_CYCLE[(MARK_CYCLE.indexOf(markState) + 1) % MARK_CYCLE.length]
+    setMarkState(next)
+    await supabase.from('steps').update({ mark_state: next }).eq('id', step.id)
+  }
+
+  async function confirmNewType() {
     const trimmed = newType.trim()
-    if (trimmed && !types.includes(trimmed)) {
-      const updated = [...types, trimmed]
-      setTypes(updated)
-      localStorage.setItem(LS_KEY, JSON.stringify(updated))
+    if (!trimmed) { setAddingType(false); setNewType(''); return }
+
+    if (allTypes.includes(trimmed)) {
+      setForm((f) => ({ ...f, stepType: trimmed }))
+      setAddingType(false)
+      setNewType('')
+      return
     }
-    if (trimmed) setForm((f) => ({ ...f, stepType: trimmed }))
+
+    if (atLimit) {
+      setTypeError(`Limite de ${STEP_TYPE_LIMIT} tipos atingido.`)
+      return
+    }
+
+    const { error: err } = await supabase
+      .from('user_step_types')
+      .insert({ user_id: userId, label: trimmed })
+
+    if (!err) {
+      onTypeAdded(trimmed)
+      setForm((f) => ({ ...f, stepType: trimmed }))
+    }
     setAddingType(false)
     setNewType('')
+    setTypeError('')
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -105,6 +130,7 @@ function StepItem({ step, isLast, onSaved, processId, canShare }: { step: Step; 
     onSaved()
   }
 
+  const remaining = STEP_TYPE_LIMIT - allTypes.length
   const isEdited = !!step.updated_at
 
   if (editing) {
@@ -119,30 +145,62 @@ function StepItem({ step, isLast, onSaved, processId, canShare }: { step: Step; 
 
           <div className="form-row">
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label>Tipo</label>
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                <label style={{ margin: 0 }}>Tipo</label>
+                <span style={{ fontSize: 11, color: atLimit ? 'var(--danger)' : 'var(--muted-2)', fontFamily: 'var(--font-mono)' }}>
+                  {allTypes.length}/{STEP_TYPE_LIMIT}
+                </span>
+              </div>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6 }}>
                 {addingType ? (
                   <>
-                    <input ref={newTypeRef} value={newType} onChange={(e) => setNewType(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); confirmNewType() } if (e.key === 'Escape') { setAddingType(false); setNewType('') } }}
-                      placeholder="Novo tipo…" style={{ paddingRight: 64 }} />
+                    <input
+                      ref={newTypeRef}
+                      value={newType}
+                      onChange={(e) => { setNewType(e.target.value); setTypeError('') }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); confirmNewType() }
+                        if (e.key === 'Escape') { setAddingType(false); setNewType(''); setTypeError('') }
+                      }}
+                      placeholder="Novo tipo…"
+                      style={{ paddingRight: 72 }}
+                    />
                     <div style={{ position: 'absolute', right: 6, display: 'flex', gap: 4 }}>
                       <button type="button" onClick={confirmNewType}
-                        style={{ fontSize: 11, padding: '2px 8px', background: 'var(--ink)', color: 'var(--bg)', border: 'none', borderRadius: 2, cursor: 'pointer' }}>OK</button>
-                      <button type="button" onClick={() => { setAddingType(false); setNewType('') }}
-                        style={{ fontSize: 11, padding: '2px 6px', background: 'transparent', color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 2, cursor: 'pointer' }}>✕</button>
+                        style={{ fontSize: 11, padding: '2px 8px', background: 'var(--ink)', color: 'var(--bg)', border: 'none', borderRadius: 2, cursor: 'pointer' }}>
+                        OK
+                      </button>
+                      <button type="button" onClick={() => { setAddingType(false); setNewType(''); setTypeError('') }}
+                        style={{ fontSize: 11, padding: '2px 6px', background: 'transparent', color: 'var(--muted)', border: '1px solid var(--line)', borderRadius: 2, cursor: 'pointer' }}>
+                        ✕
+                      </button>
                     </div>
                   </>
                 ) : (
                   <>
                     <select value={form.stepType} onChange={(e) => setForm((f) => ({ ...f, stepType: e.target.value }))} style={{ paddingRight: 36 }}>
-                      {types.map((t) => <option key={t} value={t}>{t}</option>)}
+                      {allTypes.map((t) => <option key={t} value={t}>{t}</option>)}
                     </select>
-                    <button type="button" onClick={() => setAddingType(true)}
-                      style={{ position: 'absolute', right: 8, width: 20, height: 20, background: 'var(--panel-alt)', border: '1px solid var(--line)', borderRadius: 2, display: 'grid', placeItems: 'center', fontSize: 14, color: 'var(--muted)', cursor: 'pointer', fontWeight: 500 }}>+</button>
+                    <button
+                      type="button"
+                      onClick={() => { if (!atLimit) setAddingType(true) }}
+                      disabled={atLimit}
+                      title={atLimit ? `Limite de ${STEP_TYPE_LIMIT} tipos atingido` : `Adicionar novo tipo (${remaining} restante${remaining !== 1 ? 's' : ''})`}
+                      style={{
+                        flexShrink: 0, width: 24, height: 24,
+                        background: atLimit ? 'var(--line)' : 'var(--panel-alt)',
+                        border: '1px solid var(--line)', borderRadius: 2,
+                        display: 'grid', placeItems: 'center',
+                        fontSize: 14, lineHeight: 1,
+                        color: atLimit ? 'var(--muted-2)' : 'var(--muted)',
+                        cursor: atLimit ? 'not-allowed' : 'pointer', fontWeight: 500,
+                      }}>
+                      +
+                    </button>
                   </>
                 )}
               </div>
+              {typeError && <p style={{ color: 'var(--danger)', fontSize: 12, marginTop: 4 }}>{typeError}</p>}
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label>Feito por</label>
@@ -234,6 +292,23 @@ function StepItem({ step, isLast, onSaved, processId, canShare }: { step: Step; 
 
 export default function StepTimeline({ steps, processId, canShare }: { steps: Step[]; processId: string; canShare: boolean }) {
   const router = useRouter()
+  const { user } = useUser()
+  const [customTypes, setCustomTypes] = useState<string[]>([])
+
+  const allTypes = [...DEFAULT_STEP_TYPES, ...customTypes]
+  const atLimit = allTypes.length >= STEP_TYPE_LIMIT
+
+  useEffect(() => {
+    if (!user) return
+    async function load() {
+      const { data } = await supabase
+        .from('user_step_types')
+        .select('label')
+        .order('created_at', { ascending: true })
+      if (data) setCustomTypes(data.map((r) => r.label))
+    }
+    load()
+  }, [user])
 
   if (steps.length === 0) {
     return (
@@ -253,6 +328,10 @@ export default function StepTimeline({ steps, processId, canShare }: { steps: St
           onSaved={() => router.refresh()}
           processId={processId}
           canShare={canShare}
+          allTypes={allTypes}
+          atLimit={atLimit}
+          userId={user?.id ?? ''}
+          onTypeAdded={(label) => setCustomTypes((prev) => [...prev, label])}
         />
       ))}
     </div>
