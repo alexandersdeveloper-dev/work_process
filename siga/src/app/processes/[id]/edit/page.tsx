@@ -1,11 +1,12 @@
 export const dynamic = 'force-dynamic'
 
-import { supabase } from '@/lib/supabase'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
 import ProcessForm from '../../ProcessForm'
 
 export default async function EditProcessPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  const supabase = await createServerSupabaseClient()
   const { data: process } = await supabase.from('processes').select('*').eq('id', id).single()
   if (!process) notFound()
 
