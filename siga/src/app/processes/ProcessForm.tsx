@@ -9,11 +9,10 @@ import type { Process, ProcessStatus, Priority } from '@/types'
 const PROCESS_TYPE_LIMIT = 15
 
 const DEFAULT_TYPES = [
-  'Atualização de Portal',
-  'Solicitação a Fornecedor',
-  'Microserviço',
+  'Solicitação',
   'Verificação Interna',
-  'Correção de Bug',
+  'Correção',
+  'Publicação',
   'Melhoria',
 ]
 
@@ -87,6 +86,7 @@ export default function ProcessForm({ process }: Props) {
       const { data } = await supabase
         .from('user_process_types')
         .select('label')
+        .eq('user_id', user!.id)
         .order('created_at', { ascending: true })
       if (data) setCustomTypes(data.map((r) => r.label))
     }

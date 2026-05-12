@@ -15,6 +15,9 @@ export type AuditAction =
   | 'password_changed'
   | 'login'
   | 'logout'
+  | 'type_created'
+  | 'type_updated'
+  | 'type_deleted'
 
 export async function logAudit({
   actorId,

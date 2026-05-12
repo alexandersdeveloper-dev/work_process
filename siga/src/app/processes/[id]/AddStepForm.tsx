@@ -10,13 +10,10 @@ const STEP_TYPE_LIMIT = 15
 
 const DEFAULT_TYPES = [
   'Nota',
-  'Atualização',
   'Solicitação enviada',
   'Resposta recebida',
-  'Publicação feita',
   'Verificação',
-  'Bug reportado',
-  'Bug corrigido',
+  'Concluído',
 ]
 
 export default function AddStepForm({ processId, onSuccess }: { processId: string; onSuccess?: () => void }) {
@@ -48,6 +45,7 @@ export default function AddStepForm({ processId, onSuccess }: { processId: strin
       const { data } = await supabase
         .from('user_step_types')
         .select('label')
+        .eq('user_id', user!.id)
         .order('created_at', { ascending: true })
       if (data) setCustomTypes(data.map((r) => r.label))
     }

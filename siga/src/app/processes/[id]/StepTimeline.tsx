@@ -12,13 +12,10 @@ const STEP_TYPE_LIMIT = 15
 
 const DEFAULT_STEP_TYPES = [
   'Nota',
-  'Atualização',
   'Solicitação enviada',
   'Resposta recebida',
-  'Publicação feita',
   'Verificação',
-  'Bug reportado',
-  'Bug corrigido',
+  'Concluído',
 ]
 
 function formatDateTime(iso: string) {
@@ -151,7 +148,7 @@ function StepItem({ step, isLast, onSaved, processId, canShare, allTypes, atLimi
                   {allTypes.length}/{STEP_TYPE_LIMIT}
                 </span>
               </div>
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 {addingType ? (
                   <>
                     <input
@@ -178,7 +175,7 @@ function StepItem({ step, isLast, onSaved, processId, canShare, allTypes, atLimi
                   </>
                 ) : (
                   <>
-                    <select value={form.stepType} onChange={(e) => setForm((f) => ({ ...f, stepType: e.target.value }))} style={{ paddingRight: 36 }}>
+                    <select value={form.stepType} onChange={(e) => setForm((f) => ({ ...f, stepType: e.target.value }))}>
                       {allTypes.map((t) => <option key={t} value={t}>{t}</option>)}
                     </select>
                     <button
@@ -304,6 +301,7 @@ export default function StepTimeline({ steps, processId, canShare }: { steps: St
       const { data } = await supabase
         .from('user_step_types')
         .select('label')
+        .eq('user_id', user!.id)
         .order('created_at', { ascending: true })
       if (data) setCustomTypes(data.map((r) => r.label))
     }

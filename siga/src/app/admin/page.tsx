@@ -115,6 +115,23 @@ export default async function AdminPage() {
             </div>
           </div>
         </Link>
+
+        <Link href="/admin/tipos" style={{ textDecoration: 'none' }}>
+          <div className="card" style={{ padding: 24, cursor: 'pointer' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+              <div style={{ width: 36, height: 36, background: 'var(--accent-soft)', borderRadius: 8, display: 'grid', placeItems: 'center' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                  <circle cx="7" cy="7" r="1.5" fill="var(--accent)" stroke="none"/>
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>Tipos de Usuário</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)' }}>Gerenciar tipos de processo e etapa</div>
+              </div>
+            </div>
+          </div>
+        </Link>
       </div>
     </>
   )
