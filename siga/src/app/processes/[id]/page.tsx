@@ -91,7 +91,7 @@ export default async function ProcessDetailPage({ params }: { params: Promise<{ 
           <h1>{process.title}</h1>
           <p className="sub">{getProcessTypeLabel(process.type)} · Responsável: {process.responsible}</p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {canShare && (
             <ShareModal
               processId={process.id}

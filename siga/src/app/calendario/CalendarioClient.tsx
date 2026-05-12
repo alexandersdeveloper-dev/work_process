@@ -287,6 +287,111 @@ function CalendarioSkeleton() {
   )
 }
 
+/* ---------- Agenda view (mobile) ---------- */
+interface AgendaViewProps {
+  viewYear: number
+  viewMonth: number
+  daysInMonth: number
+  todayKey: string
+  folgasByDate: Map<string, Folga[]>
+  deadlinesByDate: Map<string, ProcessDeadline[]>
+  profileId?: string
+  canAdd: boolean
+  selectionMode: boolean
+  selectedDays: string[]
+  onDayClick: (key: string, hasFolga: boolean, hasDeadline: boolean) => void
+}
+
+function AgendaView({ viewYear, viewMonth, daysInMonth, todayKey, folgasByDate, deadlinesByDate, profileId, canAdd, selectionMode, selectedDays, onDayClick }: AgendaViewProps) {
+  return (
+    <div style={{ padding: '4px 16px 16px' }}>
+      {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+        const key = isoDate(viewYear, viewMonth, day)
+        const rawFolgas = folgasByDate.get(key) ?? []
+        const dayFolgas = rawFolgas.length > 1 && profileId
+          ? [...rawFolgas].sort((a, b) => (a.user_id === profileId ? -1 : b.user_id === profileId ? 1 : 0))
+          : rawFolgas
+        const dayDeadlines = deadlinesByDate.get(key) ?? []
+        const hasFolga = dayFolgas.length > 0
+        const hasDeadline = dayDeadlines.length > 0
+        const hasEvents = hasFolga || hasDeadline
+        const isT = todayKey === key
+        const isSelected = selectedDays.includes(key)
+        const isClickable = selectionMode || hasEvents || canAdd
+        const weekday = new Date(viewYear, viewMonth, day)
+          .toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')
+
+        return (
+          <div
+            key={day}
+            onClick={() => isClickable && onDayClick(key, hasFolga, hasDeadline)}
+            style={{
+              display: 'flex', gap: 12,
+              padding: isSelected ? '10px 8px' : '10px 0',
+              borderBottom: '1px solid var(--line-2)',
+              cursor: isClickable ? 'pointer' : 'default',
+              background: isSelected ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent',
+              borderRadius: isSelected ? 6 : 0,
+              transition: 'background 0.12s',
+            }}
+          >
+            {/* Coluna de data */}
+            <div style={{ width: 38, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 2 }}>
+              <span style={{
+                fontSize: 17, fontFamily: 'var(--font-mono)', fontWeight: isT ? 700 : 400,
+                lineHeight: 1,
+                color: isSelected ? 'var(--accent)' : isT ? 'var(--accent)' : hasEvents ? 'var(--ink)' : 'var(--muted)',
+              }}>
+                {day}
+              </span>
+              <span style={{ fontSize: 9.5, color: 'var(--muted)', fontFamily: 'var(--font-mono)', marginTop: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                {weekday}
+              </span>
+            </div>
+
+            {/* Coluna de eventos */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, justifyContent: 'center', minWidth: 0 }}>
+              {!isSelected && dayFolgas.map(f => (
+                <div key={f.id} style={{
+                  fontSize: 12, borderRadius: 4, padding: '4px 8px',
+                  background: f.type === 'ferias' ? 'rgba(22,163,74,0.12)' : 'rgba(217,119,6,0.12)',
+                  border: `1px solid ${f.type === 'ferias' ? 'rgba(22,163,74,0.25)' : 'rgba(217,119,6,0.25)'}`,
+                  color: f.type === 'ferias' ? '#15803d' : '#92400e',
+                  fontWeight: 500,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>
+                  {f.profile?.full_name ?? '—'} · {f.type === 'ferias' ? 'Férias' : 'Folga'}
+                </div>
+              ))}
+              {!isSelected && dayDeadlines.map(p => {
+                const overdue = todayKey && p.deadline < todayKey
+                return (
+                  <div key={p.id} style={{
+                    fontSize: 12, borderRadius: 4, padding: '4px 8px',
+                    background: overdue ? 'rgba(239,68,68,0.10)' : 'rgba(59,130,246,0.10)',
+                    border: `1px solid ${overdue ? 'rgba(239,68,68,0.25)' : 'rgba(59,130,246,0.25)'}`,
+                    color: overdue ? '#dc2626' : '#2563eb',
+                    fontWeight: 500,
+                    display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden',
+                  }}>
+                    <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
+                      <circle cx="8" cy="8" r="6" /><path d="M8 5v3.5l2 1.2" />
+                    </svg>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
+                  </div>
+                )
+              })}
+              {isSelected && (
+                <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>Selecionado ✓</span>
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 /* ---------- Componente principal ---------- */
 export default function CalendarioClient({ folgas, deadlines }: { folgas: Folga[]; deadlines: ProcessDeadline[] }) {
   const { profile, loading: userLoading } = useUser()
@@ -300,6 +405,15 @@ export default function CalendarioClient({ folgas, deadlines }: { folgas: Folga[
   useEffect(() => {
     const d = new Date()
     setTodayKey(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`)
+  }, [])
+
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)')
+    setIsMobile(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
   }, [])
 
   const initialDate = new Date()
@@ -561,116 +675,132 @@ export default function CalendarioClient({ folgas, deadlines }: { folgas: Folga[
               <button onClick={nextMonth} style={{ background: 'none', border: '1px solid var(--line)', borderRadius: 4, width: 32, height: 32, display: 'grid', placeItems: 'center', cursor: 'pointer', color: 'var(--muted)' }}>›</button>
             </div>
 
-            <div style={{ padding: '16px 20px 20px' }}>
-              {/* Cabeçalho dias semana */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 8 }}>
-                {WEEKDAYS.map((d) => (
-                  <div key={d} style={{ textAlign: 'center', fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 500, color: 'var(--muted)', letterSpacing: '0.06em', padding: '4px 0' }}>
-                    {d}
-                  </div>
-                ))}
-              </div>
+            {isMobile ? (
+              <AgendaView
+                viewYear={viewYear}
+                viewMonth={viewMonth}
+                daysInMonth={daysInMonth}
+                todayKey={todayKey}
+                folgasByDate={folgasByDate}
+                deadlinesByDate={deadlinesByDate}
+                profileId={profile?.id}
+                canAdd={canAdd}
+                selectionMode={selectionMode}
+                selectedDays={selectedDays}
+                onDayClick={handleDayClick}
+              />
+            ) : (
+              <div style={{ padding: '16px 20px 20px' }}>
+                {/* Cabeçalho dias semana */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 8 }}>
+                  {WEEKDAYS.map((d) => (
+                    <div key={d} style={{ textAlign: 'center', fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 500, color: 'var(--muted)', letterSpacing: '0.06em', padding: '4px 0' }}>
+                      {d}
+                    </div>
+                  ))}
+                </div>
 
-              {/* Grid de dias */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
-                {cells.map((day, i) => {
-                  if (!day) return <div key={i} />
-                  const key = isoDate(viewYear, viewMonth, day)
-                  const rawFolgas = folgasByDate.get(key) ?? []
-                  const dayFolgas = rawFolgas.length > 1 && profile?.id
-                    ? [...rawFolgas].sort((a, b) => (a.user_id === profile.id ? -1 : b.user_id === profile.id ? 1 : 0))
-                    : rawFolgas
-                  const dayDeadlines = deadlinesByDate.get(key) ?? []
-                  const hasFolga = dayFolgas.length > 0
-                  const hasDeadline = dayDeadlines.length > 0
-                  const isT = todayKey === key
-                  const isSelected = selectedDays.includes(key)
-                  const isClickable = selectionMode || hasFolga || hasDeadline || canAdd
+                {/* Grid de dias */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+                  {cells.map((day, i) => {
+                    if (!day) return <div key={i} />
+                    const key = isoDate(viewYear, viewMonth, day)
+                    const rawFolgas = folgasByDate.get(key) ?? []
+                    const dayFolgas = rawFolgas.length > 1 && profile?.id
+                      ? [...rawFolgas].sort((a, b) => (a.user_id === profile.id ? -1 : b.user_id === profile.id ? 1 : 0))
+                      : rawFolgas
+                    const dayDeadlines = deadlinesByDate.get(key) ?? []
+                    const hasFolga = dayFolgas.length > 0
+                    const hasDeadline = dayDeadlines.length > 0
+                    const isT = todayKey === key
+                    const isSelected = selectedDays.includes(key)
+                    const isClickable = selectionMode || hasFolga || hasDeadline || canAdd
 
-                  const shownFolgas = dayFolgas.slice(0, 3)
-                  const shownDeadlines = dayDeadlines.slice(0, 2)
-                  const overflow = (dayFolgas.length - shownFolgas.length) + (dayDeadlines.length - shownDeadlines.length)
+                    const shownFolgas = dayFolgas.slice(0, 3)
+                    const shownDeadlines = dayDeadlines.slice(0, 2)
+                    const overflow = (dayFolgas.length - shownFolgas.length) + (dayDeadlines.length - shownDeadlines.length)
 
-                  return (
-                    <div
-                      key={i}
-                      onClick={() => isClickable && handleDayClick(key, hasFolga, hasDeadline)}
-                      className="cal-cell"
-                      style={{
-                        padding: '6px 8px',
-                        position: 'relative',
-                        background: isSelected
-                          ? 'var(--accent)'
-                          : isT
-                          ? 'var(--panel-alt)'
-                          : hasFolga || hasDeadline
-                          ? 'var(--panel-alt)'
-                          : 'transparent',
-                        border: isSelected
-                          ? '2px solid var(--accent)'
-                          : isT
-                          ? '2px solid var(--accent)'
-                          : '1px solid transparent',
-                        cursor: isClickable ? 'pointer' : 'default',
-                        transition: 'background 0.12s, border-color 0.12s',
-                        outline: selectionMode && !isSelected ? '1px dashed var(--line)' : 'none',
-                      }}
-                    >
-                      <div style={{
-                        fontSize: 13, fontFamily: 'var(--font-mono)', fontWeight: isT ? 700 : 400,
-                        color: isSelected ? 'var(--bg)' : isT ? 'var(--accent)' : 'var(--ink-2)',
-                        marginBottom: 4,
-                      }}>
-                        {day}
-                      </div>
+                    return (
+                      <div
+                        key={i}
+                        onClick={() => isClickable && handleDayClick(key, hasFolga, hasDeadline)}
+                        className="cal-cell"
+                        style={{
+                          padding: '6px 8px',
+                          position: 'relative',
+                          background: isSelected
+                            ? 'var(--accent)'
+                            : isT
+                            ? 'var(--panel-alt)'
+                            : hasFolga || hasDeadline
+                            ? 'var(--panel-alt)'
+                            : 'transparent',
+                          border: isSelected
+                            ? '2px solid var(--accent)'
+                            : isT
+                            ? '2px solid var(--accent)'
+                            : '1px solid transparent',
+                          cursor: isClickable ? 'pointer' : 'default',
+                          transition: 'background 0.12s, border-color 0.12s',
+                          outline: selectionMode && !isSelected ? '1px dashed var(--line)' : 'none',
+                        }}
+                      >
+                        <div style={{
+                          fontSize: 13, fontFamily: 'var(--font-mono)', fontWeight: isT ? 700 : 400,
+                          color: isSelected ? 'var(--bg)' : isT ? 'var(--accent)' : 'var(--ink-2)',
+                          marginBottom: 4,
+                        }}>
+                          {day}
+                        </div>
 
-                      {!isSelected && (hasFolga || hasDeadline) && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingBottom: overflow > 0 ? 14 : 0 }}>
-                          {shownFolgas.map((f) => (
-                            <div key={f.id} style={{
-                              fontSize: 10, borderRadius: 2, padding: '1px 5px',
-                              background: f.type === 'ferias' ? '#16a34a' : '#d97706',
-                              color: '#fff',
-                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                            }}>
-                              {f.profile?.full_name ?? '—'}
-                            </div>
-                          ))}
-                          {shownDeadlines.map((p) => {
-                            const overdue = todayKey && p.deadline < todayKey
-                            return (
-                              <div key={p.id} style={{
+                        {!isSelected && (hasFolga || hasDeadline) && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingBottom: overflow > 0 ? 14 : 0 }}>
+                            {shownFolgas.map((f) => (
+                              <div key={f.id} style={{
                                 fontSize: 10, borderRadius: 2, padding: '1px 5px',
-                                background: overdue ? '#ef4444' : '#3b82f6',
+                                background: f.type === 'ferias' ? '#16a34a' : '#d97706',
                                 color: '#fff',
                                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                                display: 'flex', alignItems: 'center', gap: 3,
                               }}>
-                                <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
-                                  <circle cx="8" cy="8" r="6" /><path d="M8 5v3.5l2 1.2" />
-                                </svg>
-                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title}</span>
+                                {f.profile?.full_name ?? '—'}
                               </div>
-                            )
-                          })}
-                        </div>
-                      )}
+                            ))}
+                            {shownDeadlines.map((p) => {
+                              const overdue = todayKey && p.deadline < todayKey
+                              return (
+                                <div key={p.id} style={{
+                                  fontSize: 10, borderRadius: 2, padding: '1px 5px',
+                                  background: overdue ? '#ef4444' : '#3b82f6',
+                                  color: '#fff',
+                                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                                  display: 'flex', alignItems: 'center', gap: 3,
+                                }}>
+                                  <svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
+                                    <circle cx="8" cy="8" r="6" /><path d="M8 5v3.5l2 1.2" />
+                                  </svg>
+                                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
 
-                      {!isSelected && overflow > 0 && (
-                        <div style={{
-                          position: 'absolute', bottom: 4, left: 8, right: 8,
-                          fontSize: 10, color: 'var(--muted)',
-                          background: 'linear-gradient(to bottom, transparent, var(--panel-alt) 40%)',
-                          paddingTop: 6,
-                        }}>
-                          +{overflow} mais
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
+                        {!isSelected && overflow > 0 && (
+                          <div style={{
+                            position: 'absolute', bottom: 4, left: 8, right: 8,
+                            fontSize: 10, color: 'var(--muted)',
+                            background: 'linear-gradient(to bottom, transparent, var(--panel-alt) 40%)',
+                            paddingTop: 6,
+                          }}>
+                            +{overflow} mais
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Legenda + PDF */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid var(--line)' }}>

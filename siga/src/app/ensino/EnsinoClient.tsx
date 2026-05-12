@@ -140,36 +140,49 @@ function EnsinoCard({ item, canManage, onEdit, onDelete }: {
 
   return (
     <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-            <span style={{
-              fontSize: 10.5, fontFamily: 'var(--font-mono)', fontWeight: 600,
-              color, background: `${color}18`, border: `1px solid ${color}40`,
-              borderRadius: 3, padding: '2px 7px', whiteSpace: 'nowrap',
-            }}>
-              {item.tipo}
-            </span>
-            {item.fonte && (
-              <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
-                {item.fonte}
-              </span>
-            )}
-            {item.data_publicacao && (
-              <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
-                · {formatDate(item.data_publicacao)}
-              </span>
-            )}
-          </div>
-          <div style={{ fontWeight: 500, fontSize: 14, lineHeight: 1.4, marginBottom: item.objetivo ? 6 : 0 }}>
-            {item.title}
-          </div>
-          {item.objetivo && (
-            <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.55 }}>{item.objetivo}</div>
-          )}
-        </div>
+      {/* Meta: tipo + fonte + data */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{
+          fontSize: 10.5, fontFamily: 'var(--font-mono)', fontWeight: 600,
+          color, background: `${color}18`, border: `1px solid ${color}40`,
+          borderRadius: 3, padding: '2px 7px', whiteSpace: 'nowrap',
+        }}>
+          {item.tipo}
+        </span>
+        {item.fonte && (
+          <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
+            {item.fonte}
+          </span>
+        )}
+        {item.data_publicacao && (
+          <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }} suppressHydrationWarning>
+            · {formatDate(item.data_publicacao)}
+          </span>
+        )}
+      </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+      {/* Título */}
+      <div style={{ fontWeight: 600, fontSize: 14.5, lineHeight: 1.45, color: 'var(--ink)' }}>
+        {item.title}
+      </div>
+
+      {/* Objetivo */}
+      {item.objetivo && (
+        <div style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.6 }}>{item.objetivo}</div>
+      )}
+
+      {/* Rodapé */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', borderTop: '1px solid var(--line)', paddingTop: 10, marginTop: 2 }}>
+        <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }} suppressHydrationWarning>
+          {item.author?.full_name ?? '—'} · {formatDate(item.created_at)}
+        </span>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+          {canManage && (
+            <>
+              <button className="btn ghost sm" onClick={() => onEdit(item)}>Editar</button>
+              <button className="btn ghost sm" style={{ color: 'var(--danger)' }} onClick={() => onDelete(item.id)}>Excluir</button>
+            </>
+          )}
           <a
             href={item.link}
             target="_blank"
@@ -179,17 +192,7 @@ function EnsinoCard({ item, canManage, onEdit, onDelete }: {
           >
             Acessar ↗
           </a>
-          {canManage && (
-            <div style={{ display: 'flex', gap: 4 }}>
-              <button className="btn ghost sm" onClick={() => onEdit(item)}>Editar</button>
-              <button className="btn ghost sm" style={{ color: 'var(--danger)' }} onClick={() => onDelete(item.id)}>Excluir</button>
-            </div>
-          )}
         </div>
-      </div>
-
-      <div style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)', borderTop: '1px solid var(--line)', paddingTop: 8, marginTop: 2 }}>
-        Adicionado por {item.author?.full_name ?? '—'} · {formatDate(item.created_at)}
       </div>
     </div>
   )

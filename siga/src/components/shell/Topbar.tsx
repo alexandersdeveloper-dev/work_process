@@ -100,7 +100,7 @@ export default function Topbar() {
           }}>
             {profile.full_name.charAt(0).toUpperCase()}
           </div>
-          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span className="topbar-name" style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {profile.full_name}
           </span>
         </div>
