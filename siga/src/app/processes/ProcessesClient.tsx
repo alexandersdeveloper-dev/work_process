@@ -10,6 +10,8 @@ import {
 import type { Process } from '@/types'
 
 const LS_KEY = 'siga_process_view'
+const LS_SORT_KEY = 'siga_process_sort'
+
 const TABS = [
   { key: 'all', label: 'Todos' },
   { key: 'active', label: 'Ativos' },
@@ -18,7 +20,19 @@ const TABS = [
   { key: 'completed', label: 'Concluídos' },
 ]
 
+const SORT_OPTIONS = [
+  { key: 'default', label: 'Padrão' },
+  { key: 'deadline', label: 'Prazo (mais próximo)' },
+  { key: 'priority', label: 'Prioridade' },
+  { key: 'status', label: 'Status' },
+  { key: 'title', label: 'Título (A→Z)' },
+]
+
+const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 }
+const STATUS_ORDER: Record<string, number> = { delayed: 0, in_progress: 1, active: 2, completed: 3 }
+
 type View = 'list' | 'cards'
+type SortKey = 'default' | 'deadline' | 'priority' | 'status' | 'title'
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
@@ -28,13 +42,60 @@ function formatDateLong(iso: string) {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+function deadlineKind(iso: string | null | undefined): 'overdue' | 'soon' | null {
+  if (!iso) return null
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const d = new Date(iso)
+  d.setHours(0, 0, 0, 0)
+  if (d < today) return 'overdue'
+  const diff = (d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+  return diff <= 7 ? 'soon' : null
+}
+
+/* ---------- Empty state ---------- */
+function EmptyState({ search, tab }: { search: string; tab: string }) {
+  if (search) {
+    return (
+      <div className="empty" style={{ padding: '48px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.5">
+          <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" strokeLinecap="round" />
+        </svg>
+        <p style={{ margin: 0 }}>
+          Nenhum resultado para <strong>"{search}"</strong>
+        </p>
+      </div>
+    )
+  }
+  if (tab !== 'all') {
+    return (
+      <div className="empty" style={{ padding: '48px 24px' }}>
+        <p>Nenhum processo nesta categoria.</p>
+      </div>
+    )
+  }
+  return (
+    <div className="empty" style={{ padding: '48px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.3">
+        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" strokeLinecap="round" />
+        <rect x="9" y="3" width="6" height="4" rx="1" />
+        <path d="M9 12h6M9 16h4" strokeLinecap="round" />
+      </svg>
+      <p style={{ margin: 0 }}>Nenhum processo cadastrado ainda.</p>
+      <Link href="/processes/new">
+        <button className="btn primary" style={{ marginTop: 4 }}>+ Novo processo</button>
+      </Link>
+    </div>
+  )
+}
+
 /* ---------- List view ---------- */
-function ListView({ processes }: { processes: Process[] }) {
+function ListView({ processes, search, tab }: { processes: Process[]; search: string; tab: string }) {
   const router = useRouter()
   const [, startTransition] = useTransition()
-  if (processes.length === 0) {
-    return <div className="empty"><p>Nenhum processo nesta categoria.</p></div>
-  }
+
+  if (processes.length === 0) return <EmptyState search={search} tab={tab} />
+
   return (
     <div className="table-wrap">
       <table className="t">
@@ -49,20 +110,30 @@ function ListView({ processes }: { processes: Process[] }) {
           </tr>
         </thead>
         <tbody>
-          {processes.map((p) => (
-            <tr key={p.id} onClick={() => startTransition(() => router.push(`/processes/${p.id}`))} style={{ cursor: 'pointer' }}>
-              <td className="bold">{p.title}</td>
-              <td className="muted">{getProcessTypeLabel(p.type)}</td>
-              <td><span className={`pill ${PRIORITY_KIND[p.priority]}`}>{PRIORITY_LABELS[p.priority]}</span></td>
-              <td>
-                <span className={`pill ${STATUS_KIND[p.status]}`}>
-                  <span className="d" />{STATUS_LABELS[p.status]}
-                </span>
-              </td>
-              <td className="muted">{p.responsible}</td>
-              <td className="muted" suppressHydrationWarning>{p.deadline ? formatDate(p.deadline) : '—'}</td>
-            </tr>
-          ))}
+          {processes.map((p) => {
+            const dk = deadlineKind(p.deadline)
+            return (
+              <tr key={p.id} onClick={() => startTransition(() => router.push(`/processes/${p.id}`))} style={{ cursor: 'pointer' }}>
+                <td className="bold">{p.title}</td>
+                <td className="muted">{getProcessTypeLabel(p.type)}</td>
+                <td><span className={`pill ${PRIORITY_KIND[p.priority]}`}>{PRIORITY_LABELS[p.priority]}</span></td>
+                <td>
+                  <span className={`pill ${STATUS_KIND[p.status]}`}>
+                    <span className="d" />{STATUS_LABELS[p.status]}
+                  </span>
+                </td>
+                <td className="muted">{p.responsible}</td>
+                <td suppressHydrationWarning>
+                  {p.deadline
+                    ? <span className={`pill${dk === 'overdue' ? ' danger' : dk === 'soon' ? ' warning' : ''}`}
+                        style={!dk ? { background: 'transparent', padding: '0', color: 'var(--muted)', fontWeight: 400, fontSize: 13, border: 'none', boxShadow: 'none' } : {}}>
+                        {formatDate(p.deadline)}
+                      </span>
+                    : <span className="muted">—</span>}
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
@@ -70,45 +141,47 @@ function ListView({ processes }: { processes: Process[] }) {
 }
 
 /* ---------- Cards view ---------- */
-function CardsView({ processes }: { processes: Process[] }) {
-  if (processes.length === 0) {
-    return <div className="empty" style={{ padding: '40px 24px' }}><p>Nenhum processo nesta categoria.</p></div>
-  }
+function CardsView({ processes, search, tab }: { processes: Process[]; search: string; tab: string }) {
+  if (processes.length === 0) return <EmptyState search={search} tab={tab} />
+
   return (
     <div className="process-cards">
-      {processes.map((p) => (
-        <Link key={p.id} href={`/processes/${p.id}`} className="process-card">
-          <div className="pc-header">
-            <span className={`pill ${STATUS_KIND[p.status]}`}>
-              <span className="d" />{STATUS_LABELS[p.status]}
-            </span>
-            <span className={`pill ${PRIORITY_KIND[p.priority]}`}>
-              {PRIORITY_LABELS[p.priority]}
-            </span>
-          </div>
-          <div className="pc-body">
-            <div className="pc-title">{p.title}</div>
-            <div className="pc-type">{getProcessTypeLabel(p.type)}</div>
-            {p.description && <div className="pc-desc">{p.description}</div>}
-          </div>
-          <div className="pc-footer">
-            <div className="pc-meta">
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <circle cx="8" cy="6" r="3" /><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" />
-              </svg>
-              <span>{p.responsible}</span>
+      {processes.map((p) => {
+        const dk = deadlineKind(p.deadline)
+        return (
+          <Link key={p.id} href={`/processes/${p.id}`} className="process-card">
+            <div className="pc-header">
+              <span className={`pill ${STATUS_KIND[p.status]}`}>
+                <span className="d" />{STATUS_LABELS[p.status]}
+              </span>
+              <span className={`pill ${PRIORITY_KIND[p.priority]}`}>
+                {PRIORITY_LABELS[p.priority]}
+              </span>
             </div>
-            {p.deadline && (
+            <div className="pc-body">
+              <div className="pc-title">{p.title}</div>
+              <div className="pc-type">{getProcessTypeLabel(p.type)}</div>
+              {p.description && <div className="pc-desc">{p.description}</div>}
+            </div>
+            <div className="pc-footer">
               <div className="pc-meta">
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <rect x="2" y="3" width="12" height="12" rx="1" /><path d="M5 1v4M11 1v4M2 7h12" />
+                  <circle cx="8" cy="6" r="3" /><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" />
                 </svg>
-                <span suppressHydrationWarning>{formatDateLong(p.deadline)}</span>
+                <span>{p.responsible}</span>
               </div>
-            )}
-          </div>
-        </Link>
-      ))}
+              {p.deadline && (
+                <div className="pc-meta" style={dk === 'overdue' ? { color: 'var(--danger)' } : dk === 'soon' ? { color: 'var(--warning)' } : {}}>
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="2" y="3" width="12" height="12" rx="1" /><path d="M5 1v4M11 1v4M2 7h12" />
+                  </svg>
+                  <span suppressHydrationWarning>{formatDateLong(p.deadline)}</span>
+                </div>
+              )}
+            </div>
+          </Link>
+        )
+      })}
     </div>
   )
 }
@@ -125,12 +198,29 @@ export default function ProcessesClient({
 }) {
   const [activeTab, setActiveTab] = useState('all')
   const [view, setView] = useState<View>('list')
+  const [sort, setSort] = useState<SortKey>('default')
+  const [search, setSearch] = useState('')
   const [indicator, setIndicator] = useState({ left: 0, width: 0 })
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   useEffect(() => {
-    const saved = localStorage.getItem(LS_KEY) as View | null
-    if (saved) setView(saved)
+    const savedView = localStorage.getItem(LS_KEY) as View | null
+    const savedSort = localStorage.getItem(LS_SORT_KEY) as SortKey | null
+    if (savedSort) setSort(savedSort)
+
+    const mq = window.matchMedia('(max-width: 640px)')
+    // mobile always uses cards; desktop respects saved preference
+    if (mq.matches) {
+      setView('cards')
+    } else if (savedView) {
+      setView(savedView)
+    }
+
+    function onMq(e: MediaQueryListEvent) {
+      if (e.matches) setView('cards')
+    }
+    mq.addEventListener('change', onMq)
+    return () => mq.removeEventListener('change', onMq)
   }, [])
 
   useLayoutEffect(() => {
@@ -144,6 +234,11 @@ export default function ProcessesClient({
     localStorage.setItem(LS_KEY, v)
   }
 
+  function changeSort(v: SortKey) {
+    setSort(v)
+    localStorage.setItem(LS_SORT_KEY, v)
+  }
+
   const counts = useMemo(() => ({
     all: processes.length,
     active: processes.filter((p) => p.status === 'active').length,
@@ -152,10 +247,33 @@ export default function ProcessesClient({
     completed: processes.filter((p) => p.status === 'completed').length,
   }), [processes])
 
-  const visible = useMemo(
-    () => activeTab === 'all' ? processes : processes.filter((p) => p.status === activeTab),
-    [processes, activeTab]
-  )
+  const visible = useMemo(() => {
+    let list = activeTab === 'all' ? processes : processes.filter((p) => p.status === activeTab)
+
+    if (search.trim()) {
+      const q = search.trim().toLowerCase()
+      list = list.filter((p) =>
+        p.title.toLowerCase().includes(q) || p.responsible.toLowerCase().includes(q)
+      )
+    }
+
+    if (sort === 'title') {
+      list = [...list].sort((a, b) => a.title.localeCompare(b.title, 'pt-BR'))
+    } else if (sort === 'deadline') {
+      list = [...list].sort((a, b) => {
+        if (!a.deadline && !b.deadline) return 0
+        if (!a.deadline) return 1
+        if (!b.deadline) return -1
+        return new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
+      })
+    } else if (sort === 'priority') {
+      list = [...list].sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99))
+    } else if (sort === 'status') {
+      list = [...list].sort((a, b) => (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99))
+    }
+
+    return list
+  }, [processes, activeTab, search, sort])
 
   return (
     <>
@@ -224,9 +342,50 @@ export default function ProcessesClient({
           ))}
         </div>
 
+        {/* Search + sort toolbar */}
+        <div style={{ display: 'flex', gap: 10, padding: '12px 20px', borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
+            <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="var(--muted)" strokeWidth="1.5">
+              <circle cx="7" cy="7" r="5" /><path d="M12 12l3 3" strokeLinecap="round" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Buscar por título ou responsável…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                paddingLeft: 32, paddingRight: search ? 32 : 10,
+                height: 36, border: '1px solid var(--line)', borderRadius: 6,
+                background: 'var(--panel)', color: 'var(--ink)', fontSize: 13,
+              }}
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                aria-label="Limpar busca"
+                style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: 'var(--muted)', display: 'flex' }}
+              >
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
+                </svg>
+              </button>
+            )}
+          </div>
+          <select
+            value={sort}
+            onChange={(e) => changeSort(e.target.value as SortKey)}
+            style={{ height: 36, padding: '0 10px', border: '1px solid var(--line)', borderRadius: 6, background: 'var(--panel)', color: 'var(--ink)', fontSize: 13, cursor: 'pointer' }}
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.key} value={o.key}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+
         {view === 'list'
-          ? <ListView processes={visible} />
-          : <CardsView processes={visible} />
+          ? <ListView processes={visible} search={search} tab={activeTab} />
+          : <CardsView processes={visible} search={search} tab={activeTab} />
         }
 
         <div className="pagination">
