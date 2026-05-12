@@ -9,6 +9,7 @@ import { canManageFolgas } from '@/lib/auth-guard'
 import { createClient } from '@/lib/supabase'
 import AusenciaDrawer from './AusenciaDrawer'
 import EditFolgaModal from './EditFolgaModal'
+import CalendarioSkeleton from './CalendarioSkeleton'
 import type { Folga } from '@/types'
 import type { ProcessDeadline } from './page'
 
@@ -236,75 +237,6 @@ function DayPopup({ date, folgas, deadlines, todayKey, canManage, onClose, onEdi
       </div>
     </div>,
     document.body
-  )
-}
-
-function CalendarioSkeleton() {
-  return (
-    <>
-      <div className="page-head">
-        <div>
-          <div className="skel" style={{ width: 110, height: 22, marginBottom: 8 }} />
-          <div className="skel" style={{ width: 200, height: 14 }} />
-        </div>
-        <div className="skel" style={{ width: 140, height: 34, borderRadius: 6 }} />
-      </div>
-      <div className="cal-layout">
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="card">
-            {/* Nav mês */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--line)' }}>
-              <div className="skel" style={{ width: 32, height: 32, borderRadius: 4 }} />
-              <div className="skel" style={{ width: 140, height: 18, borderRadius: 4 }} />
-              <div className="skel" style={{ width: 32, height: 32, borderRadius: 4 }} />
-            </div>
-
-            {/* Agenda skeleton — visível apenas no mobile via CSS */}
-            <div className="cal-skel-mobile" style={{ padding: '4px 16px 16px' }}>
-              {Array.from({ length: 10 }).map((_, i) => (
-                <div key={i} style={{ display: 'flex', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--line-2)' }}>
-                  <div style={{ width: 38, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, paddingTop: 2 }}>
-                    <div className="skel" style={{ width: 24, height: 20, borderRadius: 3 }} />
-                    <div className="skel" style={{ width: 20, height: 10, borderRadius: 2 }} />
-                  </div>
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5, justifyContent: 'center' }}>
-                    {i % 3 !== 2 && <div className="skel" style={{ height: 28, borderRadius: 4, width: `${60 + (i % 3) * 20}%` }} />}
-                    {i % 4 === 0 && <div className="skel" style={{ height: 28, borderRadius: 4, width: '50%' }} />}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Grade skeleton — visível apenas no desktop via CSS */}
-            <div className="cal-skel-desktop" style={{ padding: '16px 20px 20px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 8, gap: 4 }}>
-                {Array.from({ length: 7 }).map((_, i) => (
-                  <div key={i} className="skel" style={{ height: 14, borderRadius: 3 }} />
-                ))}
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
-                {Array.from({ length: 35 }).map((_, i) => (
-                  <div key={i} className="skel" style={{ height: 96, borderRadius: 6 }} />
-                ))}
-              </div>
-            </div>
-
-            {/* Legenda */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid var(--line)' }}>
-              <div style={{ display: 'flex', gap: 16 }}>
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div className="skel" style={{ width: 10, height: 10, borderRadius: 2 }} />
-                    <div className="skel" style={{ width: 36, height: 11, borderRadius: 3 }} />
-                  </div>
-                ))}
-              </div>
-              <div className="skel" style={{ width: 60, height: 28, borderRadius: 6 }} />
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
   )
 }
 
