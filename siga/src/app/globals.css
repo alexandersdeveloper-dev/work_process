@@ -264,7 +264,7 @@ a { color: inherit; text-decoration: none; }
 .sb-footer .who .r { color: var(--muted); font-size: 11px; }
 
 /* ------- Main ------- */
-.main { min-width: 0; display: flex; flex-direction: column; overflow-x: hidden; }
+.main { min-width: 0; display: flex; flex-direction: column; }
 
 .topbar {
   height: 72px;
@@ -780,12 +780,17 @@ table.t {
   .search { width: 220px; }
 }
 
+/* Skeleton calendário — padrão desktop */
+.cal-skel-desktop { display: block; }
+.cal-skel-mobile  { display: none; }
+
 /* ================================================
    RESPONSIVE — Mobile  ≤ 768px
    ================================================ */
 @media (max-width: 768px) {
-  /* Layout: sidebar vira off-canvas */
-  .app { grid-template-columns: 1fr; }
+  /* Layout: sidebar vira off-canvas — collapsed ou não, main ocupa tudo */
+  .app,
+  .app.sidebar-collapsed { grid-template-columns: 1fr; }
 
   .sidebar {
     position: fixed;
@@ -857,6 +862,10 @@ table.t {
 
   /* Timeline */
   .tl-body .tl-m { font-size: 10.5px; }
+
+  /* Skeleton calendário */
+  .cal-skel-desktop { display: none; }
+  .cal-skel-mobile  { display: block; }
 
   /* Botões de ação na page-head */
   .page-head .btn { font-size: 12.5px; padding: 7px 12px; }
@@ -1015,6 +1024,7 @@ table.t {
 @media (max-width: 768px) {
   .cal-layout {
     flex-direction: column;
+    align-items: stretch;
   }
 
   .cal-drawer {

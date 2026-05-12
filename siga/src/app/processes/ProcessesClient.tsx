@@ -60,7 +60,7 @@ function ListView({ processes }: { processes: Process[] }) {
                 </span>
               </td>
               <td className="muted">{p.responsible}</td>
-              <td className="muted">{p.deadline ? formatDate(p.deadline) : '—'}</td>
+              <td className="muted" suppressHydrationWarning>{p.deadline ? formatDate(p.deadline) : '—'}</td>
             </tr>
           ))}
         </tbody>
@@ -103,7 +103,7 @@ function CardsView({ processes }: { processes: Process[] }) {
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <rect x="2" y="3" width="12" height="12" rx="1" /><path d="M5 1v4M11 1v4M2 7h12" />
                 </svg>
-                <span>{formatDateLong(p.deadline)}</span>
+                <span suppressHydrationWarning>{formatDateLong(p.deadline)}</span>
               </div>
             )}
           </div>
