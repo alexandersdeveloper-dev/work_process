@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import type { Feriado, FeriadoType, FeriadoScope, FeriadoRecurrence, FeriadoImpact } from '@/types'
 
 const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+const WEEKDAYS_PT = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado']
+const WEEK_ORDINALS = ['1ª','2ª','3ª','4ª']
 
 const TYPE_LABELS: Record<FeriadoType, string> = {
   feriado: 'Feriado',
@@ -40,6 +42,8 @@ interface FormState {
   recurrence: FeriadoRecurrence
   month: number
   day: number
+  week_of_month: number
+  weekday: number
   date: string
   impact: FeriadoImpact
   active: boolean
@@ -52,6 +56,8 @@ const BLANK_FORM: FormState = {
   recurrence: 'anual',
   month: 1,
   day: 1,
+  week_of_month: 2,
+  weekday: 0,
   date: '',
   impact: 'visualizacao',
   active: true,
@@ -64,6 +70,9 @@ function daysInMonth(month: number): number {
 function formatRecurrence(f: Feriado): string {
   if (f.recurrence === 'anual' && f.month && f.day) {
     return `${String(f.day).padStart(2, '0')}/${String(f.month).padStart(2, '0')} (anual)`
+  }
+  if (f.recurrence === 'movel' && f.month && f.week_of_month !== null && f.weekday !== null) {
+    return `${WEEK_ORDINALS[f.week_of_month - 1]} ${WEEKDAYS_PT[f.weekday]} de ${MONTHS_PT[f.month - 1]}`
   }
   if (f.recurrence === 'pontual' && f.date) {
     const [y, m, d] = f.date.split('-').map(Number)
@@ -147,13 +156,14 @@ function FeriadoModal({ form, setForm, onClose, onSubmit, saving, error, isEdit 
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label>Recorrência</label>
             <select value={form.recurrence} onChange={(e) => setForm((f) => ({ ...f, recurrence: e.target.value as FeriadoRecurrence }))}>
-              <option value="anual">Anual (mesma data todo ano)</option>
-              <option value="pontual">Pontual (data específica)</option>
+              <option value="anual">Anual — mesma data todo ano (ex: 25/12)</option>
+              <option value="movel">Móvel — Nº dia da semana do mês (ex: 2º domingo de maio)</option>
+              <option value="pontual">Pontual — data específica única</option>
             </select>
           </div>
 
           {/* Campos de data dependendo da recorrência */}
-          {form.recurrence === 'anual' ? (
+          {form.recurrence === 'anual' && (
             <div className="form-row">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label>Mês *</label>
@@ -170,7 +180,37 @@ function FeriadoModal({ form, setForm, onClose, onSubmit, saving, error, isEdit 
                 </select>
               </div>
             </div>
-          ) : (
+          )}
+
+          {form.recurrence === 'movel' && (
+            <>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Mês *</label>
+                <select value={form.month} onChange={(e) => setForm((f) => ({ ...f, month: Number(e.target.value) }))}>
+                  {MONTHS_PT.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                </select>
+              </div>
+              <div className="form-row">
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Semana *</label>
+                  <select value={form.week_of_month} onChange={(e) => setForm((f) => ({ ...f, week_of_month: Number(e.target.value) }))}>
+                    {WEEK_ORDINALS.map((o, i) => <option key={i} value={i + 1}>{o} semana</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Dia da semana *</label>
+                  <select value={form.weekday} onChange={(e) => setForm((f) => ({ ...f, weekday: Number(e.target.value) }))}>
+                    {WEEKDAYS_PT.map((d, i) => <option key={i} value={i}>{d}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', padding: '4px 10px', background: 'var(--panel-alt)', borderRadius: 6 }}>
+                Exemplo: {WEEK_ORDINALS[form.week_of_month - 1]} {WEEKDAYS_PT[form.weekday]} de {MONTHS_PT[form.month - 1]}
+              </div>
+            </>
+          )}
+
+          {form.recurrence === 'pontual' && (
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label>Data *</label>
               <input
@@ -250,6 +290,8 @@ export default function FeriadosClient({ initialFeriados }: { initialFeriados: F
       recurrence: f.recurrence,
       month: f.month ?? 1,
       day: f.day ?? 1,
+      week_of_month: f.week_of_month ?? 2,
+      weekday: f.weekday ?? 0,
       date: f.date ?? '',
       impact: f.impact,
       active: f.active,
@@ -277,8 +319,10 @@ export default function FeriadosClient({ initialFeriados }: { initialFeriados: F
       type: form.type,
       scope: form.scope,
       recurrence: form.recurrence,
-      month: form.recurrence === 'anual' ? form.month : undefined,
+      month: form.recurrence !== 'pontual' ? form.month : undefined,
       day: form.recurrence === 'anual' ? form.day : undefined,
+      week_of_month: form.recurrence === 'movel' ? form.week_of_month : undefined,
+      weekday: form.recurrence === 'movel' ? form.weekday : undefined,
       date: form.recurrence === 'pontual' ? form.date : undefined,
       impact: form.impact,
       active: form.active,

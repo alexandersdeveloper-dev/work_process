@@ -7,7 +7,7 @@ import { headers } from 'next/headers'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const ALLOWED_TYPES = ['feriado', 'ponto_facultativo'] as const
 const ALLOWED_SCOPES = ['nacional', 'estadual', 'municipal'] as const
-const ALLOWED_RECURRENCES = ['anual', 'pontual'] as const
+const ALLOWED_RECURRENCES = ['anual', 'pontual', 'movel'] as const
 const ALLOWED_IMPACTS = ['visualizacao', 'alerta', 'bloqueio'] as const
 
 function serviceClient() {
@@ -39,7 +39,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Payload inválido' }, { status: 400 })
   }
 
-  const { name, type, scope, recurrence, month, day, date, impact, active } = body
+  const { name, type, scope, recurrence, month, day, week_of_month, weekday, date, impact, active } = body
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
 
   if (name !== undefined) {
@@ -72,26 +72,49 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   const finalRecurrence = (patch.recurrence ?? recurrence) as string | undefined
+
   if (finalRecurrence === 'anual') {
     if (month !== undefined) {
       if (typeof month !== 'number' || month < 1 || month > 12)
         return NextResponse.json({ error: 'Mês inválido.' }, { status: 400 })
       patch.month = month
-      patch.date = null
     }
     if (day !== undefined) {
       if (typeof day !== 'number' || day < 1 || day > 31)
         return NextResponse.json({ error: 'Dia inválido.' }, { status: 400 })
       patch.day = day
     }
+    patch.date = null
+    patch.week_of_month = null
+    patch.weekday = null
+  } else if (finalRecurrence === 'movel') {
+    if (month !== undefined) {
+      if (typeof month !== 'number' || month < 1 || month > 12)
+        return NextResponse.json({ error: 'Mês inválido.' }, { status: 400 })
+      patch.month = month
+    }
+    if (week_of_month !== undefined) {
+      if (typeof week_of_month !== 'number' || week_of_month < 1 || week_of_month > 4)
+        return NextResponse.json({ error: 'Semana inválida (1–4).' }, { status: 400 })
+      patch.week_of_month = week_of_month
+    }
+    if (weekday !== undefined) {
+      if (typeof weekday !== 'number' || weekday < 0 || weekday > 6)
+        return NextResponse.json({ error: 'Dia da semana inválido.' }, { status: 400 })
+      patch.weekday = weekday
+    }
+    patch.date = null
+    patch.day = null
   } else if (finalRecurrence === 'pontual') {
     if (date !== undefined) {
       if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date))
         return NextResponse.json({ error: 'Data inválida.' }, { status: 400 })
       patch.date = date
-      patch.month = null
-      patch.day = null
     }
+    patch.month = null
+    patch.day = null
+    patch.week_of_month = null
+    patch.weekday = null
   }
 
   const h = await headers()

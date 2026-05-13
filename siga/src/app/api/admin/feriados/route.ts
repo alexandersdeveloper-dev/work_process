@@ -6,7 +6,7 @@ import { headers } from 'next/headers'
 
 const ALLOWED_TYPES = ['feriado', 'ponto_facultativo'] as const
 const ALLOWED_SCOPES = ['nacional', 'estadual', 'municipal'] as const
-const ALLOWED_RECURRENCES = ['anual', 'pontual'] as const
+const ALLOWED_RECURRENCES = ['anual', 'pontual', 'movel'] as const
 const ALLOWED_IMPACTS = ['visualizacao', 'alerta', 'bloqueio'] as const
 
 function serviceClient() {
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Payload inválido' }, { status: 400 })
   }
 
-  const { name, type, scope, recurrence, month, day, date, impact, active } = body
+  const { name, type, scope, recurrence, month, day, week_of_month, weekday, date, impact, active } = body
 
   if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 120)
     return NextResponse.json({ error: 'Nome inválido (2–120 caracteres).' }, { status: 400 })
@@ -71,6 +71,8 @@ export async function POST(request: Request) {
 
   let validatedMonth: number | null = null
   let validatedDay: number | null = null
+  let validatedWeekOfMonth: number | null = null
+  let validatedWeekday: number | null = null
   let validatedDate: string | null = null
 
   if (recurrence === 'anual') {
@@ -80,6 +82,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Dia inválido para recorrência anual.' }, { status: 400 })
     validatedMonth = month
     validatedDay = day
+  } else if (recurrence === 'movel') {
+    if (typeof month !== 'number' || month < 1 || month > 12)
+      return NextResponse.json({ error: 'Mês inválido para recorrência móvel.' }, { status: 400 })
+    if (typeof week_of_month !== 'number' || week_of_month < 1 || week_of_month > 4)
+      return NextResponse.json({ error: 'Semana inválida (1–4).' }, { status: 400 })
+    if (typeof weekday !== 'number' || weekday < 0 || weekday > 6)
+      return NextResponse.json({ error: 'Dia da semana inválido (0–6).' }, { status: 400 })
+    validatedMonth = month
+    validatedWeekOfMonth = week_of_month
+    validatedWeekday = weekday
   } else {
     if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date))
       return NextResponse.json({ error: 'Data inválida para recorrência pontual.' }, { status: 400 })
@@ -98,6 +110,8 @@ export async function POST(request: Request) {
       recurrence,
       month: validatedMonth,
       day: validatedDay,
+      week_of_month: validatedWeekOfMonth,
+      weekday: validatedWeekday,
       date: validatedDate,
       impact,
       active: active !== false,

@@ -102,7 +102,7 @@ export interface Process {
 
 export type FeriadoType = 'feriado' | 'ponto_facultativo'
 export type FeriadoScope = 'nacional' | 'estadual' | 'municipal'
-export type FeriadoRecurrence = 'anual' | 'pontual'
+export type FeriadoRecurrence = 'anual' | 'pontual' | 'movel'
 export type FeriadoImpact = 'visualizacao' | 'alerta' | 'bloqueio'
 
 export interface Feriado {
@@ -113,6 +113,8 @@ export interface Feriado {
   recurrence: FeriadoRecurrence
   month: number | null
   day: number | null
+  week_of_month: number | null
+  weekday: number | null
   date: string | null
   impact: FeriadoImpact
   active: boolean

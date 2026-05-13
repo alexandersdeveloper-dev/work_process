@@ -651,7 +651,7 @@ export default function CalendarioClient({ folgas, deadlines, feriados }: { folg
     return map
   }, [deadlines])
 
-  // Pre-compute date→Feriado[] map — anual feriados keyed to viewYear
+  // Pre-compute date→Feriado[] map — anual/movel keyed to viewYear
   const feriadosByDate = useMemo(() => {
     const map = new Map<string, Feriado[]>()
     for (const f of feriados) {
@@ -660,6 +660,15 @@ export default function CalendarioClient({ folgas, deadlines, feriados }: { folg
         key = f.date
       } else if (f.recurrence === 'anual' && f.month !== null && f.day !== null) {
         key = `${viewYear}-${pad(f.month)}-${pad(f.day)}`
+      } else if (f.recurrence === 'movel' && f.month !== null && f.week_of_month !== null && f.weekday !== null) {
+        // Find the Nth occurrence of weekday in that month/year
+        const firstDayOfMonth = new Date(viewYear, f.month - 1, 1).getDay()
+        const daysToFirst = (f.weekday - firstDayOfMonth + 7) % 7
+        const nthDay = 1 + daysToFirst + (f.week_of_month - 1) * 7
+        const maxDay = new Date(viewYear, f.month, 0).getDate()
+        if (nthDay <= maxDay) {
+          key = `${viewYear}-${pad(f.month)}-${pad(nthDay)}`
+        }
       }
       if (key) {
         const arr = map.get(key)
