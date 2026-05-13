@@ -4,6 +4,10 @@ import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
+import { useQueryClient } from '@tanstack/react-query'
+import { useProfiles } from '@/hooks/use-profiles'
+import { useProcessShares } from '@/hooks/use-process-shares'
+import { queryKeys } from '@/lib/query-keys'
 import type { Profile, ProcessShare } from '@/types'
 
 interface Props {
@@ -15,12 +19,13 @@ interface Props {
 export default function StepShareModal({ stepId, stepTitle, processId }: Props) {
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const [users, setUsers] = useState<Profile[]>([])
-  const [shares, setShares] = useState<ProcessShare[]>([])
-  const [loadingUsers, setLoadingUsers] = useState(false)
   const [loading, setLoading] = useState(false)
   const { user } = useUser()
   const supabase = createClient()
+  const queryClient = useQueryClient()
+
+  const { data: users = [], isLoading: loadingUsers } = useProfiles()
+  const { data: shares = [] } = useProcessShares(processId)
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -37,25 +42,6 @@ export default function StepShareModal({ stepId, stepTitle, processId }: Props) 
     }
   }, [open, close])
 
-  useEffect(() => {
-    if (!open) return
-    let cancelled = false
-    async function load() {
-      setLoadingUsers(true)
-      const [{ data: usersData }, { data: sharesData }] = await Promise.all([
-        supabase.from('profiles').select('*').neq('role', 'admin'),
-        supabase.from('process_shares')
-          .select('*, profile:profiles!process_shares_shared_with_user_id_fkey(*)')
-          .eq('process_id', processId),
-      ])
-      if (cancelled) return
-      setUsers((usersData as Profile[]) ?? [])
-      setShares((sharesData as ProcessShare[]) ?? [])
-      setLoadingUsers(false)
-    }
-    load()
-    return () => { cancelled = true }
-  }, [open, processId])
 
   function hasStepAccess(share: ProcessShare): boolean {
     if (share.step_ids === null) return true
@@ -79,7 +65,7 @@ export default function StepShareModal({ stepId, stepTitle, processId }: Props) 
         })
         .select('*, profile:profiles!process_shares_shared_with_user_id_fkey(*)')
         .single()
-      if (data) setShares((prev) => [...prev, data as ProcessShare])
+      await queryClient.invalidateQueries({ queryKey: queryKeys.processShares(processId) })
 
       await supabase.from('notifications').insert({
         user_id: targetUser.id,
@@ -95,16 +81,14 @@ export default function StepShareModal({ stepId, stepTitle, processId }: Props) 
       const newIds = existingShare.step_ids.filter((id) => id !== stepId)
       if (newIds.length === 0) {
         await supabase.from('process_shares').delete().eq('id', existingShare.id)
-        setShares((prev) => prev.filter((s) => s.id !== existingShare.id))
       } else {
         await supabase.from('process_shares').update({ step_ids: newIds }).eq('id', existingShare.id)
-        setShares((prev) => prev.map((s) => s.id === existingShare.id ? { ...s, step_ids: newIds } : s))
       }
     } else {
       const newIds = [...existingShare.step_ids, stepId]
       await supabase.from('process_shares').update({ step_ids: newIds }).eq('id', existingShare.id)
-      setShares((prev) => prev.map((s) => s.id === existingShare.id ? { ...s, step_ids: newIds } : s))
     }
+    await queryClient.invalidateQueries({ queryKey: queryKeys.processShares(processId) })
 
     setLoading(false)
   }

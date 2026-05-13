@@ -2,9 +2,9 @@
 
 import { useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { useRouter } from 'next/navigation'
 import type { Feriado, FeriadoType, FeriadoScope, FeriadoRecurrence, FeriadoImpact } from '@/types'
 import { getPascalDate } from '@/lib/easter'
+import { useFeriados, useToggleFeriadoActive, useDeleteFeriado, useCreateFeriado, useUpdateFeriado } from '@/hooks/use-feriados'
 
 const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 const WEEKDAYS_PT = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado']
@@ -343,15 +343,21 @@ function FeriadoModal({ form, setForm, onClose, onSubmit, saving, error, isEdit 
 }
 
 export default function FeriadosClient({ initialFeriados }: { initialFeriados: Feriado[] }) {
-  const router = useRouter()
+  const { data: feriados = initialFeriados } = useFeriados(initialFeriados)
+  const toggleActive = useToggleFeriadoActive()
+  const deleteFeriado = useDeleteFeriado()
+  const createFeriado = useCreateFeriado()
+  const updateFeriado = useUpdateFeriado()
+
   const [modal, setModal] = useState<'create' | 'edit' | null>(null)
   const [editing, setEditing] = useState<Feriado | null>(null)
   const [form, setFormRaw] = useState<FormState>(BLANK_FORM)
-  const [saving, setSaving] = useState(false)
   const [modalError, setModalError] = useState('')
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [togglingId, setTogglingId] = useState<string | null>(null)
+
+  const saving = createFeriado.isPending || updateFeriado.isPending
+  const deletingId = deleteFeriado.isPending ? deleteFeriado.variables as string : null
+  const togglingId = toggleActive.isPending ? (toggleActive.variables as { id: string })?.id : null
 
   const setForm = useCallback((fn: (prev: FormState) => FormState) => {
     setFormRaw(fn)
@@ -396,7 +402,6 @@ export default function FeriadosClient({ initialFeriados }: { initialFeriados: F
     if (!form.name.trim()) { setModalError('Informe o nome do feriado.'); return }
     if (form.recurrence === 'pontual' && !form.date) { setModalError('Informe a data.'); return }
 
-    setSaving(true)
     setModalError('')
 
     const payload = {
@@ -414,42 +419,29 @@ export default function FeriadosClient({ initialFeriados }: { initialFeriados: F
       active: form.active,
     }
 
-    const url = modal === 'edit' && editing
-      ? `/api/admin/feriados/${editing.id}`
-      : '/api/admin/feriados'
-    const method = modal === 'edit' ? 'PATCH' : 'POST'
-
-    const res = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    const json = await res.json()
-    setSaving(false)
-
-    if (!res.ok) { setModalError(json.error ?? 'Erro ao salvar.'); return }
-
-    closeModal()
-    router.refresh()
+    try {
+      if (modal === 'edit' && editing) {
+        await updateFeriado.mutateAsync({ id: editing.id, body: payload })
+      } else {
+        await createFeriado.mutateAsync(payload)
+      }
+      closeModal()
+    } catch (err) {
+      setModalError(err instanceof Error ? err.message : 'Erro ao salvar.')
+    }
   }
 
   async function handleDelete(id: string) {
-    setDeletingId(id)
-    const res = await fetch(`/api/admin/feriados/${id}`, { method: 'DELETE' })
-    setDeletingId(null)
-    setConfirmDeleteId(null)
-    if (res.ok) router.refresh()
+    try {
+      await deleteFeriado.mutateAsync(id)
+      setConfirmDeleteId(null)
+    } catch {
+      // erro já tratado pelo onError do mutation
+    }
   }
 
-  async function handleToggleActive(f: Feriado) {
-    setTogglingId(f.id)
-    await fetch(`/api/admin/feriados/${f.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ active: !f.active }),
-    })
-    setTogglingId(null)
-    router.refresh()
+  function handleToggleActive(f: Feriado) {
+    toggleActive.mutate({ id: f.id, active: !f.active })
   }
 
   return (
@@ -463,7 +455,7 @@ export default function FeriadosClient({ initialFeriados }: { initialFeriados: F
       </div>
 
       <div className="card">
-        {initialFeriados.length === 0 ? (
+        {feriados.length === 0 ? (
           <div className="empty" style={{ padding: '48px 24px' }}>
             <p>Nenhum feriado cadastrado.</p>
             <button className="btn primary" onClick={openCreate} style={{ marginTop: 12 }}>Cadastrar primeiro feriado</button>
@@ -485,7 +477,7 @@ export default function FeriadosClient({ initialFeriados }: { initialFeriados: F
                   </tr>
                 </thead>
                 <tbody>
-                  {initialFeriados.map((f) => {
+                  {feriados.map((f) => {
                     const typeStyle = TYPE_CHIP[f.type]
                     const impactStyle = IMPACT_COLORS[f.impact]
                     return (
@@ -569,7 +561,7 @@ export default function FeriadosClient({ initialFeriados }: { initialFeriados: F
 
             {/* Mobile card list */}
             <div className="feriados-mobile-list">
-              {initialFeriados.map((f) => {
+              {feriados.map((f) => {
                 const typeStyle = TYPE_CHIP[f.type]
                 const impactStyle = IMPACT_COLORS[f.impact]
                 return (

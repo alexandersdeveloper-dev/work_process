@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
-import type { Profile, AusenciaType } from '@/types'
+import { useProfiles } from '@/hooks/use-profiles'
+import type { AusenciaType } from '@/types'
 
 interface Props {
   selectedDays: string[]
@@ -20,24 +21,12 @@ function fmtDay(iso: string) {
 export default function AusenciaDrawer({ selectedDays, onRemoveDay, onClose, onRegistered }: Props) {
   const { user } = useUser()
   const supabase = createClient()
-  const [profiles, setProfiles] = useState<Profile[]>([])
+  const { data: profiles = [], isLoading: loadingProfiles } = useProfiles()
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [type, setType] = useState<AusenciaType>('folga')
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    async function load() {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, full_name, role, cargo')
-        .neq('role', 'admin')
-        .order('full_name')
-      setProfiles((data as Profile[] | null) ?? [])
-    }
-    load()
-  }, [])
 
   function toggleServidor(id: string) {
     setSelectedIds((prev) =>
@@ -219,8 +208,10 @@ export default function AusenciaDrawer({ selectedDays, onRemoveDay, onClose, onR
               </div>
             </div>
 
-            {profiles.length === 0 ? (
+            {loadingProfiles ? (
               <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>Carregando…</div>
+            ) : profiles.length === 0 ? (
+              <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>Nenhum servidor disponível.</div>
             ) : (
               <div style={{ border: '1px solid var(--line)', borderRadius: 6, overflow: 'hidden' }}>
               <div style={{ display: 'flex', flexDirection: 'column', maxHeight: 180, overflowY: 'auto' }}>

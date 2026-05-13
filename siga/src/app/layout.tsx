@@ -3,6 +3,7 @@ import './globals.css'
 import { ShellProvider } from '@/components/shell/ShellProvider'
 import AppShell from '@/components/shell/AppShell'
 import { UserProvider } from '@/lib/user-context'
+import QueryProvider from '@/components/QueryProvider'
 
 export const metadata: Metadata = {
   title: 'Work Process',
@@ -24,11 +25,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body>
-        <UserProvider>
-          <ShellProvider>
-            <AppShell>{children}</AppShell>
-          </ShellProvider>
-        </UserProvider>
+        <QueryProvider>
+          <UserProvider>
+            <ShellProvider>
+              <AppShell>{children}</AppShell>
+            </ShellProvider>
+          </UserProvider>
+        </QueryProvider>
       </body>
     </html>
   )

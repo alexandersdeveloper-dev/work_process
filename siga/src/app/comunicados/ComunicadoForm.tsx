@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
-import type { Comunicado, ComunicadoType, Profile } from '@/types'
+import { useProfiles } from '@/hooks/use-profiles'
+import type { Comunicado, ComunicadoType } from '@/types'
 import { COMUNICADO_TYPE_LABELS } from '@/types'
 
 interface Props {
@@ -25,25 +26,11 @@ export default function ComunicadoForm({ comunicado, onSuccess }: Props) {
   const [type, setType] = useState<ComunicadoType>(comunicado?.type ?? 'comunicado')
   const [targetAll, setTargetAll] = useState(comunicado ? !comunicado.target_user_ids?.length : true)
   const [targetUserIds, setTargetUserIds] = useState<string[]>(comunicado?.target_user_ids ?? [])
-  const [profiles, setProfiles] = useState<Profile[]>([])
-  const [loadingProfiles, setLoadingProfiles] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    async function loadProfiles() {
-      setLoadingProfiles(true)
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .neq('role', 'admin')
-        .neq('id', user!.id)
-        .order('full_name')
-      setProfiles((data as Profile[]) ?? [])
-      setLoadingProfiles(false)
-    }
-    if (user) loadProfiles()
-  }, [user])
+  const { data: allProfiles = [], isLoading: loadingProfiles } = useProfiles()
+  const profiles = allProfiles.filter((p) => p.id !== user?.id)
 
   function toggleUser(id: string) {
     setTargetUserIds((prev) =>
