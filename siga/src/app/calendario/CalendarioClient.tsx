@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase'
 import AusenciaDrawer from './AusenciaDrawer'
 import EditFolgaModal from './EditFolgaModal'
 import CalendarioSkeleton from './CalendarioSkeleton'
-import type { Folga } from '@/types'
+import type { Folga, Feriado } from '@/types'
 import type { ProcessDeadline } from './page'
 
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
@@ -50,11 +50,27 @@ const PRIORITY_LABEL: Record<string, string> = {
   low: 'Baixa', medium: 'Média', high: 'Alta', urgent: 'Urgente',
 }
 
+const FERIADO_TYPE_LABELS: Record<string, string> = {
+  feriado: 'Feriado',
+  ponto_facultativo: 'Ponto Facultativo',
+}
+const FERIADO_SCOPE_LABELS: Record<string, string> = {
+  nacional: 'Nacional',
+  estadual: 'Estadual',
+  municipal: 'Municipal',
+}
+const FERIADO_IMPACT_LABELS: Record<string, string> = {
+  visualizacao: 'Visualização',
+  alerta: 'Alerta',
+  bloqueio: 'Bloqueio',
+}
+
 /* ---------- Popup de visualização ---------- */
-function DayPopup({ date, folgas, deadlines, todayKey, canManage, onClose, onEdit, onDelete }: {
+function DayPopup({ date, folgas, deadlines, feriados, todayKey, canManage, onClose, onEdit, onDelete }: {
   date: string
   folgas: Folga[]
   deadlines: ProcessDeadline[]
+  feriados: Feriado[]
   todayKey: string
   canManage: boolean
   onClose: () => void
@@ -103,6 +119,7 @@ function DayPopup({ date, folgas, deadlines, todayKey, canManage, onClose, onEdi
             <div style={{ fontWeight: 600, fontSize: 14, textTransform: 'capitalize' }}>{fmtLong(date)}</div>
             <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
               {[
+                feriados.length > 0 && `${feriados.length} feriado${feriados.length !== 1 ? 's' : ''}`,
                 folgas.length > 0 && `${folgas.length} ausência${folgas.length !== 1 ? 's' : ''}`,
                 deadlines.length > 0 && `${deadlines.length} prazo${deadlines.length !== 1 ? 's' : ''}`,
               ].filter(Boolean).join(' · ')}
@@ -113,6 +130,40 @@ function DayPopup({ date, folgas, deadlines, todayKey, canManage, onClose, onEdi
 
         {/* Lista rolável */}
         <div style={{ overflowY: 'auto', padding: '12px 20px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+          {/* Feriados e pontos facultativos */}
+          {feriados.length > 0 && (
+            <>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 2 }}>
+                Feriados
+              </div>
+              {feriados.map((f) => {
+                const isHoliday = f.type === 'feriado'
+                const bg = isHoliday ? 'rgba(220,38,38,0.08)' : 'rgba(124,58,237,0.08)'
+                const border = isHoliday ? 'rgba(220,38,38,0.2)' : 'rgba(124,58,237,0.2)'
+                const color = isHoliday ? '#dc2626' : '#7c3aed'
+                return (
+                  <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 6, background: bg, border: `1px solid ${border}` }}>
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" style={{ flexShrink: 0 }}>
+                      <rect x="2" y="3" width="12" height="12" rx="1" /><path d="M5 1v4M11 1v4M2 7h12" />
+                    </svg>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{f.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>
+                        {FERIADO_TYPE_LABELS[f.type]} · {FERIADO_SCOPE_LABELS[f.scope]}
+                        {f.impact !== 'visualizacao' && (
+                          <span style={{ marginLeft: 6, color, fontWeight: 600 }}>{FERIADO_IMPACT_LABELS[f.impact]}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+              {(deadlines.length > 0 || folgas.length > 0) && (
+                <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
+              )}
+            </>
+          )}
 
           {/* Prazos de processos */}
           {deadlines.length > 0 && (
@@ -248,6 +299,7 @@ interface AgendaViewProps {
   todayKey: string
   folgasByDate: Map<string, Folga[]>
   deadlinesByDate: Map<string, ProcessDeadline[]>
+  feriadosByDate: Map<string, Feriado[]>
   profileId?: string
   canAdd: boolean
   selectionMode: boolean
@@ -255,7 +307,7 @@ interface AgendaViewProps {
   onDayClick: (key: string, hasFolga: boolean, hasDeadline: boolean) => void
 }
 
-function AgendaView({ viewYear, viewMonth, daysInMonth, todayKey, folgasByDate, deadlinesByDate, profileId, canAdd, selectionMode, selectedDays, onDayClick }: AgendaViewProps) {
+function AgendaView({ viewYear, viewMonth, daysInMonth, todayKey, folgasByDate, deadlinesByDate, feriadosByDate, profileId, canAdd, selectionMode, selectedDays, onDayClick }: AgendaViewProps) {
   return (
     <div style={{ padding: '4px 16px 16px' }}>
       {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
@@ -265,9 +317,11 @@ function AgendaView({ viewYear, viewMonth, daysInMonth, todayKey, folgasByDate, 
           ? [...rawFolgas].sort((a, b) => (a.user_id === profileId ? -1 : b.user_id === profileId ? 1 : 0))
           : rawFolgas
         const dayDeadlines = deadlinesByDate.get(key) ?? []
+        const dayFeriados = feriadosByDate.get(key) ?? []
         const hasFolga = dayFolgas.length > 0
         const hasDeadline = dayDeadlines.length > 0
-        const hasEvents = hasFolga || hasDeadline
+        const hasFeriado = dayFeriados.length > 0
+        const hasEvents = hasFolga || hasDeadline || hasFeriado
         const isT = todayKey === key
         const isSelected = selectedDays.includes(key)
         const isClickable = selectionMode || hasEvents || canAdd
@@ -304,6 +358,18 @@ function AgendaView({ viewYear, viewMonth, daysInMonth, todayKey, folgasByDate, 
 
             {/* Coluna de eventos */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, justifyContent: 'center', minWidth: 0 }}>
+              {!isSelected && dayFeriados.map((feriado) => (
+                <div key={feriado.id} style={{
+                  fontSize: 12, borderRadius: 4, padding: '4px 8px',
+                  background: feriado.type === 'feriado' ? 'rgba(220,38,38,0.10)' : 'rgba(124,58,237,0.10)',
+                  border: `1px solid ${feriado.type === 'feriado' ? 'rgba(220,38,38,0.25)' : 'rgba(124,58,237,0.25)'}`,
+                  color: feriado.type === 'feriado' ? '#b91c1c' : '#6d28d9',
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>
+                  {feriado.name}
+                </div>
+              ))}
               {!isSelected && dayFolgas.map(f => (
                 <div key={f.id} style={{
                   fontSize: 12, borderRadius: 4, padding: '4px 8px',
@@ -346,7 +412,7 @@ function AgendaView({ viewYear, viewMonth, daysInMonth, todayKey, folgasByDate, 
 }
 
 /* ---------- Componente principal ---------- */
-export default function CalendarioClient({ folgas, deadlines }: { folgas: Folga[]; deadlines: ProcessDeadline[] }) {
+export default function CalendarioClient({ folgas, deadlines, feriados }: { folgas: Folga[]; deadlines: ProcessDeadline[]; feriados: Feriado[] }) {
   const { profile, loading: userLoading } = useUser()
   const canAdd = canManageFolgas(profile?.role)
   const router = useRouter()
@@ -535,7 +601,8 @@ export default function CalendarioClient({ folgas, deadlines }: { folgas: Folga[
       toggleDay(key)
       return
     }
-    if (hasFolga || hasDeadline) {
+    const hasFeriado = (feriadosByDate.get(key) ?? []).length > 0
+    if (hasFolga || hasDeadline || hasFeriado) {
       setPopupDay(key)
       return
     }
@@ -583,6 +650,25 @@ export default function CalendarioClient({ folgas, deadlines }: { folgas: Folga[
     }
     return map
   }, [deadlines])
+
+  // Pre-compute date→Feriado[] map — anual feriados keyed to viewYear
+  const feriadosByDate = useMemo(() => {
+    const map = new Map<string, Feriado[]>()
+    for (const f of feriados) {
+      let key: string | null = null
+      if (f.recurrence === 'pontual' && f.date) {
+        key = f.date
+      } else if (f.recurrence === 'anual' && f.month !== null && f.day !== null) {
+        key = `${viewYear}-${pad(f.month)}-${pad(f.day)}`
+      }
+      if (key) {
+        const arr = map.get(key)
+        if (arr) arr.push(f)
+        else map.set(key, [f])
+      }
+    }
+    return map
+  }, [feriados, viewYear])
 
   const [editingFolga, setEditingFolga] = useState<Folga | null>(null)
 
@@ -636,6 +722,7 @@ export default function CalendarioClient({ folgas, deadlines }: { folgas: Folga[
                 todayKey={todayKey}
                 folgasByDate={folgasByDate}
                 deadlinesByDate={deadlinesByDate}
+                feriadosByDate={feriadosByDate}
                 profileId={profile?.id}
                 canAdd={canAdd}
                 selectionMode={selectionMode}
@@ -663,15 +750,18 @@ export default function CalendarioClient({ folgas, deadlines }: { folgas: Folga[
                       ? [...rawFolgas].sort((a, b) => (a.user_id === profile.id ? -1 : b.user_id === profile.id ? 1 : 0))
                       : rawFolgas
                     const dayDeadlines = deadlinesByDate.get(key) ?? []
+                    const dayFeriados = feriadosByDate.get(key) ?? []
                     const hasFolga = dayFolgas.length > 0
                     const hasDeadline = dayDeadlines.length > 0
+                    const hasFeriado = dayFeriados.length > 0
                     const isT = todayKey === key
                     const isSelected = selectedDays.includes(key)
-                    const isClickable = selectionMode || hasFolga || hasDeadline || canAdd
+                    const isClickable = selectionMode || hasFolga || hasDeadline || hasFeriado || canAdd
 
-                    const shownFolgas = dayFolgas.slice(0, 3)
+                    const shownFeriados = dayFeriados.slice(0, 1)
+                    const shownFolgas = dayFolgas.slice(0, 2)
                     const shownDeadlines = dayDeadlines.slice(0, 2)
-                    const overflow = (dayFolgas.length - shownFolgas.length) + (dayDeadlines.length - shownDeadlines.length)
+                    const overflow = (dayFeriados.length - shownFeriados.length) + (dayFolgas.length - shownFolgas.length) + (dayDeadlines.length - shownDeadlines.length)
 
                     return (
                       <div
@@ -685,7 +775,7 @@ export default function CalendarioClient({ folgas, deadlines }: { folgas: Folga[
                             ? 'var(--accent)'
                             : isT
                             ? 'var(--panel-alt)'
-                            : hasFolga || hasDeadline
+                            : hasFolga || hasDeadline || hasFeriado
                             ? 'var(--panel-alt)'
                             : 'transparent',
                           border: isSelected
@@ -706,8 +796,19 @@ export default function CalendarioClient({ folgas, deadlines }: { folgas: Folga[
                           {day}
                         </div>
 
-                        {!isSelected && (hasFolga || hasDeadline) && (
+                        {!isSelected && (hasFolga || hasDeadline || hasFeriado) && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingBottom: overflow > 0 ? 14 : 0 }}>
+                            {shownFeriados.map((feriado) => (
+                              <div key={feriado.id} style={{
+                                fontSize: 10, borderRadius: 2, padding: '1px 5px',
+                                background: feriado.type === 'feriado' ? '#dc2626' : '#7c3aed',
+                                color: '#fff',
+                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                                fontWeight: 600,
+                              }}>
+                                {feriado.name}
+                              </div>
+                            ))}
                             {shownFolgas.map((f) => (
                               <div key={f.id} style={{
                                 fontSize: 10, borderRadius: 2, padding: '1px 5px',
@@ -759,6 +860,14 @@ export default function CalendarioClient({ folgas, deadlines }: { folgas: Folga[
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid var(--line)' }}>
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 2, background: '#dc2626', display: 'inline-block' }} />
+                  <span style={{ fontSize: 11, color: 'var(--muted)' }}>Feriado</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 2, background: '#7c3aed', display: 'inline-block' }} />
+                  <span style={{ fontSize: 11, color: 'var(--muted)' }}>Ponto Facultativo</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ width: 10, height: 10, borderRadius: 2, background: '#d97706', display: 'inline-block' }} />
                   <span style={{ fontSize: 11, color: 'var(--muted)' }}>Folga</span>
                 </div>
@@ -804,6 +913,7 @@ export default function CalendarioClient({ folgas, deadlines }: { folgas: Folga[
               : raw
           })()}
           deadlines={deadlinesByDate.get(popupDay) ?? []}
+          feriados={feriadosByDate.get(popupDay) ?? []}
           todayKey={todayKey}
           canManage={canAdd}
           onClose={closePopup}

@@ -534,6 +534,14 @@ button.card-h {
 .dash-proc-date.danger  { color: var(--danger); }
 .dash-proc-date.warning { color: var(--warning); }
 
+/* Meus Processos skeleton defaults (desktop: tabela visível, cards ocultos) */
+.proc-skel-table { display: block; }
+.proc-skel-cards { display: none; }
+
+/* ------- Feriados admin page ------- */
+.feriados-mobile-list { display: none; }
+.feriados-desktop-table { display: block; }
+
 /* ------- Grid ------- */
 .grid { display: grid; gap: 22px; }
 .grid.two { grid-template-columns: 2fr 1fr; }
@@ -940,6 +948,14 @@ table.t {
   /* Dashboard: troca tabela por lista de cards */
   .dash-table { display: none; }
   .dash-cards { display: block; }
+
+  /* Meus Processos skeleton: troca tabela por cards */
+  .proc-skel-table { display: none; }
+  .proc-skel-cards { display: grid; }
+
+  /* Feriados admin: esconde tabela, mostra cards */
+  .feriados-mobile-list { display: block; }
+  .feriados-desktop-table { display: none; }
 
   /* Botões de ação na page-head */
   .page-head .btn { font-size: 12.5px; padding: 7px 12px; }

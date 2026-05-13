@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import CalendarioClient from './CalendarioClient'
-import type { Folga } from '@/types'
+import type { Folga, Feriado } from '@/types'
 
 export type ProcessDeadline = {
   id: string
@@ -69,10 +69,12 @@ export default async function CalendarioPage() {
     .single()
   const role = (profileData as { role: string } | null)?.role ?? 'servidor'
 
-  const [folgas, deadlines] = await Promise.all([
+  const [folgas, deadlines, feriadosResult] = await Promise.all([
     getFolgas(supabase, uid, role),
     getDeadlines(supabase, uid, role),
+    supabase.from('feriados').select('*').eq('active', true).order('month').order('day').order('date').order('name'),
   ])
+  const feriados = (feriadosResult.data ?? []) as Feriado[]
 
-  return <CalendarioClient folgas={folgas} deadlines={deadlines} />
+  return <CalendarioClient folgas={folgas} deadlines={deadlines} feriados={feriados} />
 }

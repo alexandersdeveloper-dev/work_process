@@ -132,6 +132,24 @@ export default async function AdminPage() {
             </div>
           </div>
         </Link>
+
+        <Link href="/admin/feriados" style={{ textDecoration: 'none' }}>
+          <div className="card" style={{ padding: 24, cursor: 'pointer' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+              <div style={{ width: 36, height: 36, background: 'var(--accent-soft)', borderRadius: 8, display: 'grid', placeItems: 'center' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" />
+                  <path d="M16 2v4M8 2v4M3 10h18" />
+                  <path d="M9 16l2 2 4-4" />
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>Feriados</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)' }}>Feriados e pontos facultativos</div>
+              </div>
+            </div>
+          </div>
+        </Link>
       </div>
     </>
   )

@@ -231,7 +231,7 @@ const StepItem = memo(function StepItem({ step, isLast, onSaved, processId, canS
   }
 
   return (
-    <div className="tl-item" style={{ position: 'relative' }}>
+    <div className="tl-item">
       <div
         className={`tl-mark clickable${markState === 'positive' ? ' done' : markState === 'negative' ? ' negative' : ' accent'}`}
         onClick={handleMarkClick}
@@ -239,21 +239,41 @@ const StepItem = memo(function StepItem({ step, isLast, onSaved, processId, canS
       >
         {markState === 'positive' ? '✓' : markState === 'negative' ? '✗' : '●'}
       </div>
-      <div className="tl-body" style={{ flex: 1 }}>
-        <div className="tl-t" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {step.title}
-          {step.step_type && (
-            <span className="tl-type">{step.step_type}</span>
-          )}
-          {isEdited && (
-            <span style={{
-              fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--muted)',
-              background: 'var(--panel-alt)', border: '1px solid var(--line)',
-              padding: '1px 6px', borderRadius: 2,
-            }}>
-              editado
-            </span>
-          )}
+      <div className="tl-body" style={{ flex: 1, minWidth: 0 }}>
+        {/* Linha de título + ações em fluxo normal — sem position:absolute */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+          <div className="tl-t" style={{ flex: 1, minWidth: 0 }}>
+            {step.title}
+            {step.step_type && (
+              <span className="tl-type">{step.step_type}</span>
+            )}
+            {isEdited && (
+              <span style={{
+                fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--muted)',
+                background: 'var(--panel-alt)', border: '1px solid var(--line)',
+                padding: '1px 6px', borderRadius: 2, marginLeft: 6,
+              }}>
+                editado
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+            {canShare && (
+              <StepShareModal stepId={step.id} stepTitle={step.title} processId={processId} />
+            )}
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              style={{
+                fontSize: 11, color: 'var(--muted)', background: 'none',
+                border: 'none', cursor: 'pointer', padding: '2px 6px',
+                opacity: 0.6,
+              }}
+              title="Editar etapa"
+            >
+              editar
+            </button>
+          </div>
         </div>
         {step.description && <div className="tl-d">{step.description}</div>}
         {step.reference_link && <div className="tl-link">{step.reference_link}</div>}
@@ -266,23 +286,6 @@ const StepItem = memo(function StepItem({ step, isLast, onSaved, processId, canS
             </span>
           )}
         </div>
-      </div>
-      <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', gap: 2 }}>
-        {canShare && (
-          <StepShareModal stepId={step.id} stepTitle={step.title} processId={processId} />
-        )}
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          style={{
-            fontSize: 11, color: 'var(--muted)', background: 'none',
-            border: 'none', cursor: 'pointer', padding: '2px 6px',
-            opacity: 0.6,
-          }}
-          title="Editar etapa"
-        >
-          editar
-        </button>
       </div>
     </div>
   )

@@ -92,6 +92,7 @@ export default function Sidebar() {
               {item('/admin', 'Painel Admin', <ShieldIcon />)}
               {item('/admin/usuarios', 'Usuários', <UsersIcon />)}
               {item('/admin/tipos', 'Tipos de Usuário', <TagIcon />)}
+              {item('/admin/feriados', 'Feriados', <CalendarCheckIcon />)}
             </div>
           )}
         </nav>
@@ -202,6 +203,16 @@ function TagIcon() {
     <svg className="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
       <circle cx="7" cy="7" r="1.5" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+function CalendarCheckIcon() {
+  return (
+    <svg className="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path d="M16 2v4M8 2v4M3 10h18" />
+      <path d="M9 16l2 2 4-4" />
     </svg>
   )
 }

@@ -100,6 +100,27 @@ export interface Process {
   shares?: ProcessShare[]
 }
 
+export type FeriadoType = 'feriado' | 'ponto_facultativo'
+export type FeriadoScope = 'nacional' | 'estadual' | 'municipal'
+export type FeriadoRecurrence = 'anual' | 'pontual'
+export type FeriadoImpact = 'visualizacao' | 'alerta' | 'bloqueio'
+
+export interface Feriado {
+  id: string
+  name: string
+  type: FeriadoType
+  scope: FeriadoScope
+  recurrence: FeriadoRecurrence
+  month: number | null
+  day: number | null
+  date: string | null
+  impact: FeriadoImpact
+  active: boolean
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
 export type StepMarkState = 'neutral' | 'positive' | 'negative'
 
 export type EnsinoTipo = 'Lei' | 'Decreto' | 'Instrução Normativa' | 'Portaria' | 'Resolução' | 'Nota Técnica' | 'Manual' | 'Outro'

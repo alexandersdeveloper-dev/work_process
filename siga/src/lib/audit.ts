@@ -18,6 +18,9 @@ export type AuditAction =
   | 'type_created'
   | 'type_updated'
   | 'type_deleted'
+  | 'feriado_created'
+  | 'feriado_updated'
+  | 'feriado_deleted'
 
 export async function logAudit({
   actorId,
