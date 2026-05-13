@@ -4,10 +4,27 @@ import { useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import type { Feriado, FeriadoType, FeriadoScope, FeriadoRecurrence, FeriadoImpact } from '@/types'
+import { getPascalDate } from '@/lib/easter'
 
 const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 const WEEKDAYS_PT = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado']
 const WEEK_ORDINALS = ['1ª','2ª','3ª','4ª']
+
+const PASCAL_PRESETS = [
+  { label: 'Carnaval — Segunda-feira (Páscoa − 47)', offset: -47 },
+  { label: 'Carnaval — Terça-feira (Páscoa − 46)',  offset: -46 },
+  { label: 'Sexta-feira Santa / Paixão de Cristo (Páscoa − 2)', offset: -2 },
+  { label: 'Páscoa (offset 0)',                     offset:   0 },
+  { label: 'Corpus Christi (Páscoa + 60)',           offset:  60 },
+] as const
+
+const PASCAL_OFFSET_LABELS: Record<number, string> = {
+  '-47': 'Carnaval (seg.)',
+  '-46': 'Carnaval (ter.)',
+  '-2':  'Sexta-feira Santa',
+  '0':   'Páscoa',
+  '60':  'Corpus Christi',
+}
 
 const TYPE_LABELS: Record<FeriadoType, string> = {
   feriado: 'Feriado',
@@ -44,6 +61,8 @@ interface FormState {
   day: number
   week_of_month: number
   weekday: number
+  pascal_offset: number
+  pascal_custom: boolean
   date: string
   impact: FeriadoImpact
   active: boolean
@@ -58,6 +77,8 @@ const BLANK_FORM: FormState = {
   day: 1,
   week_of_month: 2,
   weekday: 0,
+  pascal_offset: -2,
+  pascal_custom: false,
   date: '',
   impact: 'visualizacao',
   active: true,
@@ -67,12 +88,26 @@ function daysInMonth(month: number): number {
   return new Date(2024, month, 0).getDate()
 }
 
+function formatPascalOffset(offset: number): string {
+  const known = PASCAL_OFFSET_LABELS[offset]
+  if (offset === 0) return 'Páscoa'
+  const sign = offset > 0 ? `+ ${offset}` : `− ${Math.abs(offset)}`
+  return known ? `${known} (Páscoa ${sign} dias)` : `Páscoa ${sign} dias`
+}
+
 function formatRecurrence(f: Feriado): string {
   if (f.recurrence === 'anual' && f.month && f.day) {
     return `${String(f.day).padStart(2, '0')}/${String(f.month).padStart(2, '0')} (anual)`
   }
   if (f.recurrence === 'movel' && f.month && f.week_of_month !== null && f.weekday !== null) {
     return `${WEEK_ORDINALS[f.week_of_month - 1]} ${WEEKDAYS_PT[f.weekday]} de ${MONTHS_PT[f.month - 1]}`
+  }
+  if (f.recurrence === 'pascal' && f.pascal_offset !== null) {
+    const thisYear = new Date().getFullYear()
+    const date = getPascalDate(thisYear, f.pascal_offset)
+    const [y, m, d] = date.split('-').map(Number)
+    const formatted = new Date(y, m - 1, d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+    return `${formatPascalOffset(f.pascal_offset)} — ${formatted}/${thisYear}`
   }
   if (f.recurrence === 'pontual' && f.date) {
     const [y, m, d] = f.date.split('-').map(Number)
@@ -158,6 +193,7 @@ function FeriadoModal({ form, setForm, onClose, onSubmit, saving, error, isEdit 
             <select value={form.recurrence} onChange={(e) => setForm((f) => ({ ...f, recurrence: e.target.value as FeriadoRecurrence }))}>
               <option value="anual">Anual — mesma data todo ano (ex: 25/12)</option>
               <option value="movel">Móvel — Nº dia da semana do mês (ex: 2º domingo de maio)</option>
+              <option value="pascal">Pascal — relativo à Páscoa (Carnaval, Corpus Christi…)</option>
               <option value="pontual">Pontual — data específica única</option>
             </select>
           </div>
@@ -209,6 +245,51 @@ function FeriadoModal({ form, setForm, onClose, onSubmit, saving, error, isEdit 
               </div>
             </>
           )}
+
+          {form.recurrence === 'pascal' && (() => {
+            const thisYear = new Date().getFullYear()
+            const previewDate = getPascalDate(thisYear, form.pascal_offset)
+            const [py, pm, pd] = previewDate.split('-').map(Number)
+            const previewFormatted = new Date(py, pm - 1, pd).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })
+            const isPreset = PASCAL_PRESETS.some((p) => p.offset === form.pascal_offset)
+            return (
+              <>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label>Feriado pascal</label>
+                  <select
+                    value={form.pascal_custom ? 'custom' : String(form.pascal_offset)}
+                    onChange={(e) => {
+                      if (e.target.value === 'custom') {
+                        setForm((f) => ({ ...f, pascal_custom: true }))
+                      } else {
+                        setForm((f) => ({ ...f, pascal_offset: Number(e.target.value), pascal_custom: false }))
+                      }
+                    }}
+                  >
+                    {PASCAL_PRESETS.map((p) => (
+                      <option key={p.offset} value={String(p.offset)}>{p.label}</option>
+                    ))}
+                    <option value="custom">Personalizado (offset manual)…</option>
+                  </select>
+                </div>
+                {(form.pascal_custom || !isPreset) && (
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>Offset em dias (negativo = antes da Páscoa)</label>
+                    <input
+                      type="number"
+                      value={form.pascal_offset}
+                      min={-60}
+                      max={100}
+                      onChange={(e) => setForm((f) => ({ ...f, pascal_offset: Number(e.target.value), pascal_custom: true }))}
+                    />
+                  </div>
+                )}
+                <div style={{ fontSize: 12, color: 'var(--muted)', padding: '6px 10px', background: 'var(--panel-alt)', borderRadius: 6 }}>
+                  Em {thisYear}: <strong style={{ color: 'var(--ink)' }}>{previewFormatted}</strong>
+                </div>
+              </>
+            )
+          })()}
 
           {form.recurrence === 'pontual' && (
             <div className="form-group" style={{ marginBottom: 0 }}>
@@ -292,6 +373,8 @@ export default function FeriadosClient({ initialFeriados }: { initialFeriados: F
       day: f.day ?? 1,
       week_of_month: f.week_of_month ?? 2,
       weekday: f.weekday ?? 0,
+      pascal_offset: f.pascal_offset ?? -2,
+      pascal_custom: false,
       date: f.date ?? '',
       impact: f.impact,
       active: f.active,
@@ -319,10 +402,11 @@ export default function FeriadosClient({ initialFeriados }: { initialFeriados: F
       type: form.type,
       scope: form.scope,
       recurrence: form.recurrence,
-      month: form.recurrence !== 'pontual' ? form.month : undefined,
+      month: (form.recurrence === 'anual' || form.recurrence === 'movel') ? form.month : undefined,
       day: form.recurrence === 'anual' ? form.day : undefined,
       week_of_month: form.recurrence === 'movel' ? form.week_of_month : undefined,
       weekday: form.recurrence === 'movel' ? form.weekday : undefined,
+      pascal_offset: form.recurrence === 'pascal' ? form.pascal_offset : undefined,
       date: form.recurrence === 'pontual' ? form.date : undefined,
       impact: form.impact,
       active: form.active,

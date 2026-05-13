@@ -11,6 +11,7 @@ import AusenciaDrawer from './AusenciaDrawer'
 import EditFolgaModal from './EditFolgaModal'
 import CalendarioSkeleton from './CalendarioSkeleton'
 import type { Folga, Feriado } from '@/types'
+import { getPascalDate } from '@/lib/easter'
 import type { ProcessDeadline } from './page'
 
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
@@ -669,6 +670,8 @@ export default function CalendarioClient({ folgas, deadlines, feriados }: { folg
         if (nthDay <= maxDay) {
           key = `${viewYear}-${pad(f.month)}-${pad(nthDay)}`
         }
+      } else if (f.recurrence === 'pascal' && f.pascal_offset !== null) {
+        key = getPascalDate(viewYear, f.pascal_offset)
       }
       if (key) {
         const arr = map.get(key)

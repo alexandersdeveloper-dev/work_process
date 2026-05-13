@@ -7,7 +7,7 @@ import { headers } from 'next/headers'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const ALLOWED_TYPES = ['feriado', 'ponto_facultativo'] as const
 const ALLOWED_SCOPES = ['nacional', 'estadual', 'municipal'] as const
-const ALLOWED_RECURRENCES = ['anual', 'pontual', 'movel'] as const
+const ALLOWED_RECURRENCES = ['anual', 'pontual', 'movel', 'pascal'] as const
 const ALLOWED_IMPACTS = ['visualizacao', 'alerta', 'bloqueio'] as const
 
 function serviceClient() {
@@ -39,7 +39,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Payload inválido' }, { status: 400 })
   }
 
-  const { name, type, scope, recurrence, month, day, week_of_month, weekday, date, impact, active } = body
+  const { name, type, scope, recurrence, month, day, week_of_month, weekday, pascal_offset, date, impact, active } = body
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
 
   if (name !== undefined) {
@@ -87,6 +87,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     patch.date = null
     patch.week_of_month = null
     patch.weekday = null
+    patch.pascal_offset = null
   } else if (finalRecurrence === 'movel') {
     if (month !== undefined) {
       if (typeof month !== 'number' || month < 1 || month > 12)
@@ -105,6 +106,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
     patch.date = null
     patch.day = null
+    patch.pascal_offset = null
+  } else if (finalRecurrence === 'pascal') {
+    if (pascal_offset !== undefined) {
+      if (typeof pascal_offset !== 'number' || !Number.isInteger(pascal_offset) || pascal_offset < -60 || pascal_offset > 100)
+        return NextResponse.json({ error: 'Offset pascal inválido (−60 a +100 dias).' }, { status: 400 })
+      patch.pascal_offset = pascal_offset
+    }
+    patch.date = null
+    patch.month = null
+    patch.day = null
+    patch.week_of_month = null
+    patch.weekday = null
   } else if (finalRecurrence === 'pontual') {
     if (date !== undefined) {
       if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date))
@@ -115,6 +128,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     patch.day = null
     patch.week_of_month = null
     patch.weekday = null
+    patch.pascal_offset = null
   }
 
   const h = await headers()

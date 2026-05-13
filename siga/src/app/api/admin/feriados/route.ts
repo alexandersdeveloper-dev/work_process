@@ -6,7 +6,7 @@ import { headers } from 'next/headers'
 
 const ALLOWED_TYPES = ['feriado', 'ponto_facultativo'] as const
 const ALLOWED_SCOPES = ['nacional', 'estadual', 'municipal'] as const
-const ALLOWED_RECURRENCES = ['anual', 'pontual', 'movel'] as const
+const ALLOWED_RECURRENCES = ['anual', 'pontual', 'movel', 'pascal'] as const
 const ALLOWED_IMPACTS = ['visualizacao', 'alerta', 'bloqueio'] as const
 
 function serviceClient() {
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Payload inválido' }, { status: 400 })
   }
 
-  const { name, type, scope, recurrence, month, day, week_of_month, weekday, date, impact, active } = body
+  const { name, type, scope, recurrence, month, day, week_of_month, weekday, pascal_offset, date, impact, active } = body
 
   if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 120)
     return NextResponse.json({ error: 'Nome inválido (2–120 caracteres).' }, { status: 400 })
@@ -73,6 +73,7 @@ export async function POST(request: Request) {
   let validatedDay: number | null = null
   let validatedWeekOfMonth: number | null = null
   let validatedWeekday: number | null = null
+  let validatedPascalOffset: number | null = null
   let validatedDate: string | null = null
 
   if (recurrence === 'anual') {
@@ -92,6 +93,10 @@ export async function POST(request: Request) {
     validatedMonth = month
     validatedWeekOfMonth = week_of_month
     validatedWeekday = weekday
+  } else if (recurrence === 'pascal') {
+    if (typeof pascal_offset !== 'number' || !Number.isInteger(pascal_offset) || pascal_offset < -60 || pascal_offset > 100)
+      return NextResponse.json({ error: 'Offset pascal inválido (−60 a +100 dias).' }, { status: 400 })
+    validatedPascalOffset = pascal_offset
   } else {
     if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date))
       return NextResponse.json({ error: 'Data inválida para recorrência pontual.' }, { status: 400 })
@@ -112,6 +117,7 @@ export async function POST(request: Request) {
       day: validatedDay,
       week_of_month: validatedWeekOfMonth,
       weekday: validatedWeekday,
+      pascal_offset: validatedPascalOffset,
       date: validatedDate,
       impact,
       active: active !== false,
