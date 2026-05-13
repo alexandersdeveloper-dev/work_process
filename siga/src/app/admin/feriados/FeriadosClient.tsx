@@ -11,16 +11,18 @@ const WEEKDAYS_PT = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Qu
 const WEEK_ORDINALS = ['1ª','2ª','3ª','4ª']
 
 const PASCAL_PRESETS = [
-  { label: 'Carnaval — Segunda-feira (Páscoa − 47)', offset: -47 },
-  { label: 'Carnaval — Terça-feira (Páscoa − 46)',  offset: -46 },
+  { label: 'Carnaval — Segunda-feira (Páscoa − 48)', offset: -48 },
+  { label: 'Carnaval — Terça-feira (Páscoa − 47)',  offset: -47 },
+  { label: 'Quarta-feira de Cinzas (Páscoa − 46)',   offset: -46 },
   { label: 'Sexta-feira Santa / Paixão de Cristo (Páscoa − 2)', offset: -2 },
   { label: 'Páscoa (offset 0)',                     offset:   0 },
   { label: 'Corpus Christi (Páscoa + 60)',           offset:  60 },
 ] as const
 
 const PASCAL_OFFSET_LABELS: Record<number, string> = {
-  '-47': 'Carnaval (seg.)',
-  '-46': 'Carnaval (ter.)',
+  '-48': 'Carnaval (seg.)',
+  '-47': 'Carnaval (ter.)',
+  '-46': 'Quarta de Cinzas',
   '-2':  'Sexta-feira Santa',
   '0':   'Páscoa',
   '60':  'Corpus Christi',

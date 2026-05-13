@@ -816,7 +816,7 @@ export default function CalendarioClient({ folgas, deadlines, feriados }: { folg
                                 background: feriado.type === 'feriado' ? '#dc2626' : '#7c3aed',
                                 color: '#fff',
                                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                                fontWeight: 600,
+                                fontWeight: 500,
                               }}>
                                 {feriado.name}
                               </div>
