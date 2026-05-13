@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { useRouter } from 'next/navigation'
 import { useUser } from '@/lib/user-context'
 import { useShell } from '@/components/shell/ShellProvider'
 import { canManageFolgas } from '@/lib/auth-guard'
@@ -10,9 +9,11 @@ import { createClient } from '@/lib/supabase'
 import AusenciaDrawer from './AusenciaDrawer'
 import EditFolgaModal from './EditFolgaModal'
 import CalendarioSkeleton from './CalendarioSkeleton'
-import type { Folga, Feriado } from '@/types'
+import type { Folga, Feriado, ProcessDeadline } from '@/types'
 import { getPascalDate } from '@/lib/easter'
-import type { ProcessDeadline } from './page'
+import { useFolgas, useInvalidateFolgas } from '@/hooks/use-folgas'
+import { useDeadlines } from '@/hooks/use-deadlines'
+import { useFeriados } from '@/hooks/use-feriados'
 
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 const WEEKDAYS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
@@ -413,12 +414,18 @@ function AgendaView({ viewYear, viewMonth, daysInMonth, todayKey, folgasByDate, 
 }
 
 /* ---------- Componente principal ---------- */
-export default function CalendarioClient({ folgas, deadlines, feriados }: { folgas: Folga[]; deadlines: ProcessDeadline[]; feriados: Feriado[] }) {
+export default function CalendarioClient() {
   const { profile, loading: userLoading } = useUser()
+  const userId = profile?.id ?? ''
+  const role = profile?.role ?? ''
   const canAdd = canManageFolgas(profile?.role)
-  const router = useRouter()
   const { collapsed, setCollapsed } = useShell()
   const prevCollapsed = useRef(false)
+
+  const { data: folgas = [], isLoading: folgasLoading } = useFolgas(userId, role)
+  const { data: deadlines = [], isLoading: deadlinesLoading } = useDeadlines(userId, role)
+  const { data: feriados = [] } = useFeriados()
+  const invalidateFolgas = useInvalidateFolgas()
 
   // Computado só no cliente para evitar hydration mismatch (servidor UTC vs browser local)
   const [todayKey, setTodayKey] = useState('')
@@ -620,7 +627,7 @@ export default function CalendarioClient({ folgas, deadlines, feriados }: { folg
 
   function onRegistered() {
     cancelSelection()
-    router.refresh()
+    invalidateFolgas(userId, role)
   }
 
   // Pre-compute a date→Folga[] map once per folgas change instead of filtering 42× per render
@@ -687,12 +694,12 @@ export default function CalendarioClient({ folgas, deadlines, feriados }: { folg
   async function handleDeleteFolga(f: Folga) {
     const supabase = createClient()
     await supabase.from('folgas').delete().eq('id', f.id)
-    router.refresh()
+    invalidateFolgas(userId, role)
   }
 
   const closePopup = useCallback(() => setPopupDay(null), [])
 
-  if (userLoading) return <CalendarioSkeleton />
+  if (userLoading || folgasLoading || deadlinesLoading) return <CalendarioSkeleton />
 
   return (
     <>
@@ -938,7 +945,7 @@ export default function CalendarioClient({ folgas, deadlines, feriados }: { folg
         <EditFolgaModal
           folga={editingFolga}
           onClose={() => setEditingFolga(null)}
-          onSaved={() => { setEditingFolga(null); router.refresh() }}
+          onSaved={() => { setEditingFolga(null); invalidateFolgas(userId, role) }}
         />
       )}
     </>

@@ -100,6 +100,15 @@ export interface Process {
   shares?: ProcessShare[]
 }
 
+export interface ProcessDeadline {
+  id: string
+  title: string
+  type: string
+  status: string
+  priority: string
+  deadline: string
+}
+
 export type FeriadoType = 'feriado' | 'ponto_facultativo'
 export type FeriadoScope = 'nacional' | 'estadual' | 'municipal'
 export type FeriadoRecurrence = 'anual' | 'pontual' | 'movel' | 'pascal'
