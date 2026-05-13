@@ -41,18 +41,22 @@ export default function ShareModal({ processId, processOwnerId, existingShares }
 
   useEffect(() => {
     if (!open) return
+    let cancelled = false
     async function load() {
       setLoadingUsers(true)
-      const { data: usersData } = await supabase.from('profiles').select('*').neq('role', 'admin')
+      const [{ data: usersData }, { data: sharesData }] = await Promise.all([
+        supabase.from('profiles').select('*').neq('role', 'admin'),
+        supabase.from('process_shares')
+          .select('*, profile:profiles!process_shares_shared_with_user_id_fkey(*)')
+          .eq('process_id', processId),
+      ])
+      if (cancelled) return
       setUsers((usersData as Profile[]) ?? [])
-      const { data: sharesData } = await supabase
-        .from('process_shares')
-        .select('*, profile:profiles!process_shares_shared_with_user_id_fkey(*)')
-        .eq('process_id', processId)
       setShares((sharesData as ProcessShare[]) ?? [])
       setLoadingUsers(false)
     }
     load()
+    return () => { cancelled = true }
   }, [open, processId])
 
   const sharedWithIds = new Set(shares.map((s) => s.shared_with_user_id))

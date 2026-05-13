@@ -26,11 +26,13 @@ export default function ComunicadoForm({ comunicado, onSuccess }: Props) {
   const [targetAll, setTargetAll] = useState(comunicado ? !comunicado.target_user_ids?.length : true)
   const [targetUserIds, setTargetUserIds] = useState<string[]>(comunicado?.target_user_ids ?? [])
   const [profiles, setProfiles] = useState<Profile[]>([])
+  const [loadingProfiles, setLoadingProfiles] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     async function loadProfiles() {
+      setLoadingProfiles(true)
       const { data } = await supabase
         .from('profiles')
         .select('*')
@@ -38,6 +40,7 @@ export default function ComunicadoForm({ comunicado, onSuccess }: Props) {
         .neq('id', user!.id)
         .order('full_name')
       setProfiles((data as Profile[]) ?? [])
+      setLoadingProfiles(false)
     }
     if (user) loadProfiles()
   }, [user])
@@ -121,7 +124,6 @@ export default function ComunicadoForm({ comunicado, onSuccess }: Props) {
       onSuccess()
     } else {
       router.push('/comunicados')
-      router.refresh()
     }
   }
 
@@ -195,8 +197,10 @@ export default function ComunicadoForm({ comunicado, onSuccess }: Props) {
               border: '1px solid var(--line)', borderRadius: 6,
               maxHeight: 220, overflowY: 'auto',
             }}>
-              {profiles.length === 0 ? (
+              {loadingProfiles ? (
                 <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--muted)' }}>Carregando…</div>
+              ) : profiles.length === 0 ? (
+                <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--muted)' }}>Nenhum usuário disponível.</div>
               ) : profiles.map((p) => {
                 const checked = targetUserIds.includes(p.id)
                 return (

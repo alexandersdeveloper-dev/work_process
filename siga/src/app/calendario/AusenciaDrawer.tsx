@@ -62,35 +62,52 @@ export default function AusenciaDrawer({ selectedDays, onRemoveDay, onClose, onR
       if (type === 'ferias') {
         const start = selectedDays[0]
         const end = selectedDays[selectedDays.length - 1]
+        const body = `Férias de ${fmtDay(start)} a ${fmtDay(end)}.`
 
-        for (const uid of selectedIds) {
-          const { data, error: err } = await supabase
-            .from('folgas')
-            .insert({ user_id: uid, registered_by: registeredBy, date: start, end_date: end, type: 'ferias', description: description.trim() || null })
-            .select().single()
-          if (err) { setError(err.message); setLoading(false); return }
-          await supabase.from('notifications').insert({
-            user_id: uid, type: 'folga_registered', title: 'Férias registradas',
-            body: `Férias de ${fmtDay(start)} a ${fmtDay(end)}.`,
-            related_id: (data as { id: string }).id, related_type: 'folga',
-          })
-        }
+        const results = await Promise.all(
+          selectedIds.map((uid) =>
+            supabase.from('folgas')
+              .insert({ user_id: uid, registered_by: registeredBy, date: start, end_date: end, type: 'ferias', description: description.trim() || null })
+              .select().single()
+          )
+        )
+        const failed = results.find((r) => r.error)
+        if (failed) { setError(failed.error!.message); setLoading(false); return }
+
+        await Promise.all(
+          results.map((r) =>
+            supabase.from('notifications').insert({
+              user_id: (r.data as { user_id: string }).user_id,
+              type: 'folga_registered', title: 'Férias registradas', body,
+              related_id: (r.data as { id: string }).id, related_type: 'folga',
+            })
+          )
+        )
       } else {
-        for (const uid of selectedIds) {
-          const records = selectedDays.map((d) => ({
-            user_id: uid, registered_by: registeredBy, date: d,
-            end_date: null, type: 'folga' as AusenciaType, description: description.trim() || null,
-          }))
-          const { data: inserted, error: err } = await supabase.from('folgas').insert(records).select()
-          if (err) { setError(err.message); setLoading(false); return }
-          const firstId = (inserted as { id: string }[])[0]?.id
-          const label = selectedDays.length === 1 ? fmtDay(selectedDays[0]) : `${selectedDays.length} dias`
-          await supabase.from('notifications').insert({
-            user_id: uid, type: 'folga_registered', title: 'Folga registrada',
-            body: `Folga registrada: ${label}.`,
-            related_id: firstId, related_type: 'folga',
+        const label = selectedDays.length === 1 ? fmtDay(selectedDays[0]) : `${selectedDays.length} dias`
+
+        const results = await Promise.all(
+          selectedIds.map((uid) => {
+            const records = selectedDays.map((d) => ({
+              user_id: uid, registered_by: registeredBy, date: d,
+              end_date: null, type: 'folga' as AusenciaType, description: description.trim() || null,
+            }))
+            return supabase.from('folgas').insert(records).select()
           })
-        }
+        )
+        const failed = results.find((r) => r.error)
+        if (failed) { setError(failed.error!.message); setLoading(false); return }
+
+        await Promise.all(
+          results.map((r, i) =>
+            supabase.from('notifications').insert({
+              user_id: selectedIds[i],
+              type: 'folga_registered', title: 'Folga registrada',
+              body: `Folga registrada: ${label}.`,
+              related_id: (r.data as { id: string }[])[0]?.id, related_type: 'folga',
+            })
+          )
+        )
       }
     } catch {
       setError('Erro ao registrar. Tente novamente.')

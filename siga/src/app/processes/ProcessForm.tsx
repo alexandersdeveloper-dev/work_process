@@ -155,7 +155,6 @@ export default function ProcessForm({ process }: Props) {
 
     const id = isEdit ? process.id : (result.data as Process).id
     router.push(`/processes/${id}`)
-    router.refresh()
   }
 
   return (

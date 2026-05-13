@@ -17,6 +17,7 @@ export default function StepShareModal({ stepId, stepTitle, processId }: Props) 
   const [mounted, setMounted] = useState(false)
   const [users, setUsers] = useState<Profile[]>([])
   const [shares, setShares] = useState<ProcessShare[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
   const [loading, setLoading] = useState(false)
   const { user } = useUser()
   const supabase = createClient()
@@ -38,16 +39,22 @@ export default function StepShareModal({ stepId, stepTitle, processId }: Props) 
 
   useEffect(() => {
     if (!open) return
+    let cancelled = false
     async function load() {
-      const { data: usersData } = await supabase.from('profiles').select('*').neq('role', 'admin')
+      setLoadingUsers(true)
+      const [{ data: usersData }, { data: sharesData }] = await Promise.all([
+        supabase.from('profiles').select('*').neq('role', 'admin'),
+        supabase.from('process_shares')
+          .select('*, profile:profiles!process_shares_shared_with_user_id_fkey(*)')
+          .eq('process_id', processId),
+      ])
+      if (cancelled) return
       setUsers((usersData as Profile[]) ?? [])
-      const { data: sharesData } = await supabase
-        .from('process_shares')
-        .select('*, profile:profiles!process_shares_shared_with_user_id_fkey(*)')
-        .eq('process_id', processId)
       setShares((sharesData as ProcessShare[]) ?? [])
+      setLoadingUsers(false)
     }
     load()
+    return () => { cancelled = true }
   }, [open, processId])
 
   function hasStepAccess(share: ProcessShare): boolean {
@@ -156,7 +163,19 @@ export default function StepShareModal({ stepId, stepTitle, processId }: Props) 
             </div>
 
             <div style={{ padding: 20 }}>
-              {eligibleUsers.length === 0 ? (
+              {loadingUsers ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} style={{
+                      height: 56, borderRadius: 6,
+                      background: 'var(--panel-alt)',
+                      border: '1px solid var(--line)',
+                      opacity: 0.5,
+                      animation: 'pulse 1.2s ease-in-out infinite',
+                    }} />
+                  ))}
+                </div>
+              ) : eligibleUsers.length === 0 ? (
                 <p style={{ color: 'var(--muted)', fontSize: 13 }}>Nenhum usuário disponível.</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
