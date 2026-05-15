@@ -12,14 +12,22 @@ interface UserCtx {
   refreshProfile: () => Promise<void>
 }
 
-const Ctx = createContext<UserCtx>({ user: null, profile: null, loading: true, refreshProfile: async () => {} })
+const Ctx = createContext<UserCtx>({ user: null, profile: null, loading: false, refreshProfile: async () => {} })
 
 export function useUser() { return useContext(Ctx) }
 
-export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [loading, setLoading] = useState(true)
+export function UserProvider({
+  children,
+  initialUser = null,
+  initialProfile = null,
+}: {
+  children: React.ReactNode
+  initialUser?: User | null
+  initialProfile?: Profile | null
+}) {
+  const [user, setUser] = useState<User | null>(initialUser)
+  const [profile, setProfile] = useState<Profile | null>(initialProfile)
+  const [loading, setLoading] = useState(false)
 
   async function loadProfile(uid: string) {
     const supabase = createClient()
@@ -38,22 +46,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const supabase = createClient()
 
-    async function init() {
-      const { data: { user: u } } = await supabase.auth.getUser()
-      setUser(u)
-      if (u) await loadProfile(u.id)
-      setLoading(false)
-    }
-    init()
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event: AuthChangeEvent, session: Session | null) => {
         const u = session?.user ?? null
         setUser(u)
-        if (u && event !== 'TOKEN_REFRESHED') {
+        if (u && event !== 'TOKEN_REFRESHED' && event !== 'INITIAL_SESSION') {
           loadProfile(u.id)
         } else if (!u) {
           setProfile(null)
+          setLoading(false)
         }
       }
     )

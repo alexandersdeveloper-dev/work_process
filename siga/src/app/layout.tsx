@@ -6,13 +6,28 @@ import { UserProvider } from '@/lib/user-context'
 import QueryProvider from '@/components/QueryProvider'
 import { ActionLoaderProvider } from '@/contexts/ActionLoaderContext'
 import ActionLoader from '@/components/ActionLoader'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
+import type { Profile } from '@/types'
 
 export const metadata: Metadata = {
   title: 'Work Process',
   description: 'Gestão de processos de trabalho',
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  let profile: Profile | null = null
+  if (user) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, full_name, role, cargo')
+      .eq('id', user.id)
+      .single()
+    profile = (data as Profile) ?? null
+  }
+
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
@@ -30,7 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <QueryProvider>
           <ActionLoaderProvider>
             <ActionLoader />
-            <UserProvider>
+            <UserProvider initialUser={user} initialProfile={profile}>
               <ShellProvider>
                 <AppShell>{children}</AppShell>
               </ShellProvider>
