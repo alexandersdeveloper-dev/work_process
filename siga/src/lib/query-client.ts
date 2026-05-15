@@ -4,10 +4,10 @@ export function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 60 * 1000,       // 1 min — serve cache, refetch em background
-        gcTime: 5 * 60 * 1000,      // 5 min — mantém no cache após unmount
+        staleTime: 2 * 60 * 1000,    // 2 min — cache fresco, sem refetch desnecessário
+        gcTime: 10 * 60 * 1000,     // 10 min — dados disponíveis entre navegações
         retry: 1,
-        refetchOnWindowFocus: true,  // revalida ao retornar para a aba
+        refetchOnWindowFocus: false, // evita refetch ao alt-tab
       },
     },
   })

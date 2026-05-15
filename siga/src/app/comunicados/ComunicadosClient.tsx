@@ -3,12 +3,14 @@
 import { useState, useEffect, useCallback, useTransition } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
+import { useQueryClient } from '@tanstack/react-query'
 import { canPublish } from '@/lib/auth-guard'
 import type { Comunicado, ComunicadoType } from '@/types'
 import { COMUNICADO_TYPE_LABELS } from '@/types'
+import { useComunicados } from '@/hooks/use-comunicados'
+import { queryKeys } from '@/lib/query-keys'
 import ComunicadoForm from './ComunicadoForm'
 
 function formatDate(iso: string) {
@@ -170,23 +172,53 @@ function NovoComunicadoModal({ onClose, onSuccess }: { onClose: () => void; onSu
   )
 }
 
-export default function ComunicadosClient({ comunicados: initial }: { comunicados: Comunicado[] }) {
-  const [list, setList] = useState(initial)
+export default function ComunicadosClient() {
+  const { user, profile } = useUser()
+  const userId = user?.id ?? ''
+  const role = profile?.role ?? ''
+  const queryClient = useQueryClient()
   const [showModal, setShowModal] = useState(false)
   const [, startTransition] = useTransition()
-  const { profile } = useUser()
-  const router = useRouter()
-  const canManage = canPublish(profile?.role)
+  const canManage = canPublish(role || null)
+
+  const { data: list = [], isLoading } = useComunicados(userId, role)
 
   function handleDelete(id: string) {
-    setList((prev) => prev.filter((c) => c.id !== id))
-    // refresh in background — UI already updated optimistically
-    startTransition(() => router.refresh())
+    queryClient.setQueryData<Comunicado[]>(
+      queryKeys.comunicados(userId, role),
+      (old) => old?.filter((c) => c.id !== id) ?? []
+    )
+    startTransition(() => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.comunicados(userId, role) })
+    })
   }
 
   function handleSuccess() {
     setShowModal(false)
-    router.refresh()
+    queryClient.invalidateQueries({ queryKey: queryKeys.comunicados(userId, role) })
+  }
+
+  if (isLoading) {
+    return (
+      <>
+        <div className="page-head">
+          <div>
+            <h1>Comunicado Institucional</h1>
+            <p className="sub">Avisos, comunicados e informativos da equipe</p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {[1, 2, 3].map((i) => (
+            <div key={i} style={{
+              height: 80, borderRadius: 8,
+              background: 'var(--panel-alt)',
+              border: '1px solid var(--line)',
+              animation: 'pulse 1.2s ease-in-out infinite',
+            }} />
+          ))}
+        </div>
+      </>
+    )
   }
 
   return (

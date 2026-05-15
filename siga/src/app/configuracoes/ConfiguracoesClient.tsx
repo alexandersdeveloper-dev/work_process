@@ -3,6 +3,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
+import { useQueryClient } from '@tanstack/react-query'
+import { useProcessTypes, useStepTypes, type CustomTypeRow } from '@/hooks/use-custom-types'
+import { queryKeys } from '@/lib/query-keys'
 
 const PROCESS_TYPE_LIMIT = 15
 const STEP_TYPE_LIMIT = 15
@@ -25,23 +28,16 @@ const DEFAULT_STEP_TYPES = [
 
 type Tab = 'processos' | 'etapas'
 
-interface TypeRow {
-  id: string
-  label: string
-  created_at: string
-}
-
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 export default function ConfiguracoesClient() {
-  const { user, loading: userLoading } = useUser()
-  const [tab, setTab] = useState<Tab>('processos')
-  const [processTypes, setProcessTypes] = useState<TypeRow[]>([])
-  const [stepTypes, setStepTypes] = useState<TypeRow[]>([])
-  const [loadingTypes, setLoadingTypes] = useState(true)
+  const { user } = useUser()
+  const userId = user?.id ?? ''
+  const queryClient = useQueryClient()
 
+  const [tab, setTab] = useState<Tab>('processos')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editLabel, setEditLabel] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -51,29 +47,17 @@ export default function ConfiguracoesClient() {
   const [error, setError] = useState('')
   const newLabelRef = useRef<HTMLInputElement>(null)
 
+  const { data: processTypes = [], isLoading: processTypesLoading } = useProcessTypes(userId)
+  const { data: stepTypes = [], isLoading: stepTypesLoading } = useStepTypes(userId)
+
   const currentTypes = tab === 'processos' ? processTypes : stepTypes
-  const setCurrentTypes = tab === 'processos' ? setProcessTypes : setStepTypes
+  const isLoading = processTypesLoading || stepTypesLoading
   const defaults = tab === 'processos' ? DEFAULT_PROCESS_TYPES : DEFAULT_STEP_TYPES
   const limit = tab === 'processos' ? PROCESS_TYPE_LIMIT : STEP_TYPE_LIMIT
   const table = tab === 'processos' ? 'user_process_types' : 'user_step_types'
-  const used = defaults.length + currentTypes.length
+  const queryKey = tab === 'processos' ? queryKeys.processTypes(userId) : queryKeys.stepTypes(userId)
   const remaining = limit - currentTypes.length
   const atLimit = currentTypes.length >= limit
-
-  useEffect(() => {
-    if (!user) return
-    async function load() {
-      setLoadingTypes(true)
-      const [{ data: pt }, { data: st }] = await Promise.all([
-        supabase.from('user_process_types').select('id, label, created_at').eq('user_id', user!.id).order('created_at'),
-        supabase.from('user_step_types').select('id, label, created_at').eq('user_id', user!.id).order('created_at'),
-      ])
-      setProcessTypes(pt ?? [])
-      setStepTypes(st ?? [])
-      setLoadingTypes(false)
-    }
-    load()
-  }, [user])
 
   useEffect(() => {
     if (adding) newLabelRef.current?.focus()
@@ -94,19 +78,17 @@ export default function ConfiguracoesClient() {
     if (atLimit) { setError(`Limite de ${limit} tipos personalizados atingido.`); return }
     setSaving(true)
     setError('')
-    const { data, error: err } = await supabase
+    const { error: err } = await supabase
       .from(table)
       .insert({ user_id: user.id, label: trimmed })
-      .select('id, created_at')
-      .single()
     setSaving(false)
     if (err) { setError('Erro ao adicionar tipo.'); return }
-    setCurrentTypes((prev) => [...prev, { id: data.id, label: trimmed, created_at: data.created_at }])
+    queryClient.invalidateQueries({ queryKey })
     setNewLabel('')
     setAdding(false)
   }
 
-  async function handleRename(row: TypeRow) {
+  async function handleRename(row: CustomTypeRow) {
     const trimmed = editLabel.trim()
     if (!trimmed || trimmed === row.label || !user) { resetActions(); return }
     setSaving(true)
@@ -115,7 +97,6 @@ export default function ConfiguracoesClient() {
     const { error: err } = await supabase.from(table).update({ label: trimmed }).eq('id', row.id)
     if (err) { setSaving(false); setError('Erro ao salvar.'); return }
 
-    // Cascata: atualiza registros existentes com o label antigo
     if (tab === 'processos') {
       await supabase.from('processes').update({ type: trimmed }).eq('type', row.label)
     } else {
@@ -126,23 +107,23 @@ export default function ConfiguracoesClient() {
       }
     }
 
-    setCurrentTypes((prev) => prev.map((t) => t.id === row.id ? { ...t, label: trimmed } : t))
+    queryClient.invalidateQueries({ queryKey })
     setSaving(false)
     setEditingId(null)
     setEditLabel('')
   }
 
-  async function handleDelete(row: TypeRow) {
+  async function handleDelete(row: CustomTypeRow) {
     setSaving(true)
     setError('')
     const { error: err } = await supabase.from(table).delete().eq('id', row.id)
     setSaving(false)
     if (err) { setError('Erro ao excluir.'); return }
-    setCurrentTypes((prev) => prev.filter((t) => t.id !== row.id))
+    queryClient.invalidateQueries({ queryKey })
     setDeletingId(null)
   }
 
-  if (userLoading || loadingTypes) {
+  if (isLoading) {
     return (
       <>
         <div className="page-head">
@@ -344,7 +325,6 @@ export default function ConfiguracoesClient() {
         )}
       </div>
 
-      {/* Info sobre renomeação */}
       {currentTypes.length > 0 && (
         <p style={{ marginTop: 16, fontSize: 12, color: 'var(--muted-2)' }}>
           Ao renomear um tipo, todos os processos e etapas que o utilizam serão atualizados automaticamente.

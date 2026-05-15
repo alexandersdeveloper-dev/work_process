@@ -10,6 +10,7 @@ export const queryKeys = {
   steps: (processId: string) => ['steps', processId] as const,
   processShares: (processId: string) => ['process-shares', processId] as const,
   sharedProcesses: (userId: string) => ['shared-processes', userId] as const,
+  allProcesses: () => ['all-processes'] as const,
 
   // --- Comunicados ---
   comunicados: (userId: string, role: string) => ['comunicados', userId, role] as const,
@@ -26,4 +27,6 @@ export const queryKeys = {
 
   // --- Configurações ---
   configuracoes: (userId: string) => ['configuracoes', userId] as const,
+  processTypes: (userId: string) => ['process-types', userId] as const,
+  stepTypes: (userId: string) => ['step-types', userId] as const,
 }

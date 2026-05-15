@@ -415,7 +415,7 @@ function AgendaView({ viewYear, viewMonth, daysInMonth, todayKey, folgasByDate, 
 
 /* ---------- Componente principal ---------- */
 export default function CalendarioClient() {
-  const { profile, loading: userLoading } = useUser()
+  const { profile } = useUser()
   const userId = profile?.id ?? ''
   const role = profile?.role ?? ''
   const canAdd = canManageFolgas(profile?.role)
@@ -699,7 +699,7 @@ export default function CalendarioClient() {
 
   const closePopup = useCallback(() => setPopupDay(null), [])
 
-  if (userLoading || folgasLoading || deadlinesLoading) return <CalendarioSkeleton />
+  if (folgasLoading || deadlinesLoading) return <CalendarioSkeleton />
 
   return (
     <>

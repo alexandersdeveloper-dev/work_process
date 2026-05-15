@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useLayoutEffect, useTransition, useEffect, useRef } from 'react'
+import { useState, useMemo, useLayoutEffect, useTransition, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -8,6 +8,8 @@ import {
   getProcessTypeLabel, PRIORITY_LABELS, PRIORITY_KIND,
 } from '@/types'
 import type { Process } from '@/types'
+import { useUser } from '@/lib/user-context'
+import { useProcesses, useSharedProcesses, useAllProcesses } from '@/hooks/use-processes'
 
 const LS_KEY = 'siga_process_view'
 const LS_SORT_KEY = 'siga_process_sort'
@@ -53,8 +55,31 @@ function deadlineKind(iso: string | null | undefined): 'overdue' | 'soon' | null
   return diff <= 7 ? 'soon' : null
 }
 
+/* ---------- Skeleton ---------- */
+function ProcessesSkeleton({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <>
+      <div className="page-head">
+        <div>
+          <h1>{title}</h1>
+          <p className="sub">{subtitle}</p>
+        </div>
+      </div>
+      <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} style={{
+            height: 44, borderRadius: 4,
+            background: 'var(--panel-alt)',
+            animation: 'pulse 1.2s ease-in-out infinite',
+          }} />
+        ))}
+      </div>
+    </>
+  )
+}
+
 /* ---------- Empty state ---------- */
-function EmptyState({ search, tab }: { search: string; tab: string }) {
+function EmptyState({ search, tab, isShared }: { search: string; tab: string; isShared: boolean }) {
   if (search) {
     return (
       <div className="empty" style={{ padding: '48px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
@@ -74,6 +99,13 @@ function EmptyState({ search, tab }: { search: string; tab: string }) {
       </div>
     )
   }
+  if (isShared) {
+    return (
+      <div className="empty" style={{ padding: '48px 24px' }}>
+        <p>Nenhum processo foi compartilhado com você ainda.</p>
+      </div>
+    )
+  }
   return (
     <div className="empty" style={{ padding: '48px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.3">
@@ -90,11 +122,11 @@ function EmptyState({ search, tab }: { search: string; tab: string }) {
 }
 
 /* ---------- List view ---------- */
-function ListView({ processes, search, tab }: { processes: Process[]; search: string; tab: string }) {
+function ListView({ processes, search, tab, isShared }: { processes: Process[]; search: string; tab: string; isShared: boolean }) {
   const router = useRouter()
   const [, startTransition] = useTransition()
 
-  if (processes.length === 0) return <EmptyState search={search} tab={tab} />
+  if (processes.length === 0) return <EmptyState search={search} tab={tab} isShared={isShared} />
 
   return (
     <div className="table-wrap">
@@ -141,8 +173,8 @@ function ListView({ processes, search, tab }: { processes: Process[]; search: st
 }
 
 /* ---------- Cards view ---------- */
-function CardsView({ processes, search, tab }: { processes: Process[]; search: string; tab: string }) {
-  if (processes.length === 0) return <EmptyState search={search} tab={tab} />
+function CardsView({ processes, search, tab, isShared }: { processes: Process[]; search: string; tab: string; isShared: boolean }) {
+  if (processes.length === 0) return <EmptyState search={search} tab={tab} isShared={isShared} />
 
   return (
     <div className="process-cards">
@@ -188,14 +220,25 @@ function CardsView({ processes, search, tab }: { processes: Process[]; search: s
 
 /* ---------- Main component ---------- */
 export default function ProcessesClient({
-  processes,
+  mode = 'own',
   title = 'Meus Processos',
   subtitle = 'Seus processos de trabalho',
 }: {
-  processes: Process[]
+  mode?: 'own' | 'shared' | 'unit'
   title?: string
   subtitle?: string
 }) {
+  const { user } = useUser()
+  const userId = user?.id ?? ''
+
+  const isOwn = mode === 'own'
+  const isUnit = mode === 'unit'
+  const ownQuery = useProcesses(userId, isOwn)
+  const sharedQuery = useSharedProcesses(userId, mode === 'shared')
+  const unitQuery = useAllProcesses(isUnit)
+
+  const { data: processes = [], isLoading } = isUnit ? unitQuery : isOwn ? ownQuery : sharedQuery
+
   const [activeTab, setActiveTab] = useState('all')
   const [view, setView] = useState<View>('list')
   const [sort, setSort] = useState<SortKey>('default')
@@ -209,7 +252,6 @@ export default function ProcessesClient({
     if (savedSort) setSort(savedSort)
 
     const mq = window.matchMedia('(max-width: 640px)')
-    // mobile always uses cards; desktop respects saved preference
     if (mq.matches) {
       setView('cards')
     } else if (savedView) {
@@ -229,15 +271,15 @@ export default function ProcessesClient({
     if (el) setIndicator({ left: el.offsetLeft, width: el.offsetWidth })
   }, [activeTab])
 
-  function toggleView(v: View) {
+  const toggleView = useCallback((v: View) => {
     setView(v)
     localStorage.setItem(LS_KEY, v)
-  }
+  }, [])
 
-  function changeSort(v: SortKey) {
+  const changeSort = useCallback((v: SortKey) => {
     setSort(v)
     localStorage.setItem(LS_SORT_KEY, v)
-  }
+  }, [])
 
   const counts = useMemo(() => ({
     all: processes.length,
@@ -271,9 +313,10 @@ export default function ProcessesClient({
     } else if (sort === 'status') {
       list = [...list].sort((a, b) => (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99))
     }
-
     return list
   }, [processes, activeTab, search, sort])
+
+  if (isLoading) return <ProcessesSkeleton title={title} subtitle={subtitle} />
 
   return (
     <>
@@ -308,9 +351,11 @@ export default function ProcessesClient({
               </svg>
             </button>
           </div>
-          <Link href="/processes/new">
-            <button className="btn primary">+ Novo processo</button>
-          </Link>
+          {isOwn && (
+            <Link href="/processes/new">
+              <button className="btn primary">+ Novo processo</button>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -384,8 +429,8 @@ export default function ProcessesClient({
         </div>
 
         {view === 'list'
-          ? <ListView processes={visible} search={search} tab={activeTab} />
-          : <CardsView processes={visible} search={search} tab={activeTab} />
+          ? <ListView processes={visible} search={search} tab={activeTab} isShared={mode === 'shared'} />
+          : <CardsView processes={visible} search={search} tab={activeTab} isShared={mode === 'shared'} />
         }
 
         <div className="pagination">
