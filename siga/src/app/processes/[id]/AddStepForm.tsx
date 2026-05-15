@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
 import { useUserTypes } from '@/lib/use-user-types'
 import { useActionLoader } from '@/contexts/ActionLoaderContext'
 import { useToast } from '@/contexts/ToastContext'
+import { queryKeys } from '@/lib/query-keys'
+import type { Step } from '@/types'
 import DateTimePicker from '@/components/DateTimePicker'
 
 const STEP_TYPE_LIMIT = 15
@@ -20,8 +22,8 @@ const DEFAULT_TYPES = [
 ]
 
 export default function AddStepForm({ processId, onSuccess }: { processId: string; onSuccess?: () => void }) {
-  const router = useRouter()
   const { user } = useUser()
+  const queryClient = useQueryClient()
   const { showLoader, hideLoader } = useActionLoader()
   const { showToast } = useToast()
 
@@ -94,7 +96,7 @@ export default function AddStepForm({ processId, onSuccess }: { processId: strin
       : new Date().toISOString()
 
     try {
-      const { error: err } = await supabase.from('steps').insert({
+      const { data: newStep, error: err } = await supabase.from('steps').insert({
         process_id: processId,
         title: title.trim(),
         description: description.trim() || null,
@@ -102,7 +104,7 @@ export default function AddStepForm({ processId, onSuccess }: { processId: strin
         performed_by: performedBy.trim() || null,
         reference_link: referenceLink.trim() || null,
         created_at: createdAt,
-      })
+      }).select('id, title, description, step_type, performed_by, reference_link, created_at, updated_at, mark_state, process_id').single()
 
       if (err) throw err
 
@@ -118,7 +120,9 @@ export default function AddStepForm({ processId, onSuccess }: { processId: strin
       setReferenceLink('')
       setDatetime('')
       showToast('Etapa registrada')
-      router.refresh()
+
+      queryClient.setQueryData<Step[]>(queryKeys.steps(processId), (old) => [...(old ?? []), newStep as Step])
+      queryClient.invalidateQueries({ queryKey: queryKeys.steps(processId) })
       onSuccess?.()
     } catch {
       showToast('Erro ao registrar etapa.', 'error')

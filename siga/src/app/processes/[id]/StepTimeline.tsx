@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, memo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
 import { useUserTypes } from '@/lib/use-user-types'
 import { useActionLoader } from '@/contexts/ActionLoaderContext'
 import { useToast } from '@/contexts/ToastContext'
+import { useSteps } from '@/hooks/use-steps'
+import { queryKeys } from '@/lib/query-keys'
 import type { Step, StepMarkState } from '@/types'
 import StepShareModal from './StepShareModal'
 import DateTimePicker from '@/components/DateTimePicker'
@@ -309,41 +311,63 @@ const StepItem = memo(function StepItem({ step, isLast, onSaved, processId, canS
   )
 })
 
-export default function StepTimeline({ steps, processId, canShare }: { steps: Step[]; processId: string; canShare: boolean }) {
-  const router = useRouter()
+interface StepTimelineProps {
+  processId: string
+  initialSteps: Step[]
+  stepIds?: string[] | null
+  stepsFiltered: boolean
+  canShare: boolean
+}
+
+export default function StepTimeline({ processId, initialSteps, stepIds, stepsFiltered, canShare }: StepTimelineProps) {
   const { user } = useUser()
+  const queryClient = useQueryClient()
   const { customTypes, addType } = useUserTypes('user_step_types')
+  const { data: steps = [] } = useSteps(processId, stepIds, initialSteps)
 
   const allTypes = [...DEFAULT_STEP_TYPES, ...customTypes]
   const atLimit = allTypes.length >= STEP_TYPE_LIMIT
 
-  const handleSaved = useCallback(() => router.refresh(), [router])
+  const handleSaved = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.steps(processId) })
+  }, [queryClient, processId])
   const handleTypeAdded = useCallback((label: string) => addType(label), [addType])
 
-  if (steps.length === 0) {
-    return (
-      <div className="empty">
-        <p>Nenhuma etapa registrada ainda.</p>
-      </div>
-    )
-  }
-
   return (
-    <div className="timeline">
-      {steps.map((step, i) => (
-        <StepItem
-          key={step.id}
-          step={step}
-          isLast={i === steps.length - 1}
-          onSaved={handleSaved}
-          processId={processId}
-          canShare={canShare}
-          allTypes={allTypes}
-          atLimit={atLimit}
-          userId={user?.id ?? ''}
-          onTypeAdded={handleTypeAdded}
-        />
-      ))}
+    <div className="card">
+      <div className="card-h">
+        <h3>Trilha de execução</h3>
+        <span className="sub">{steps.length} etapa{steps.length !== 1 ? 's' : ''}</span>
+      </div>
+      {stepsFiltered && (
+        <div style={{ padding: '8px 20px', background: 'var(--panel-alt)', borderBottom: '1px solid var(--line)', fontSize: 12, color: 'var(--muted)' }}>
+          Você tem acesso a {steps.length} etapa{steps.length !== 1 ? 's' : ''} deste processo.
+        </div>
+      )}
+      <div className="card-b">
+        {steps.length === 0 ? (
+          <div className="empty">
+            <p>Nenhuma etapa registrada ainda.</p>
+          </div>
+        ) : (
+          <div className="timeline">
+            {steps.map((step, i) => (
+              <StepItem
+                key={step.id}
+                step={step}
+                isLast={i === steps.length - 1}
+                onSaved={handleSaved}
+                processId={processId}
+                canShare={canShare}
+                allTypes={allTypes}
+                atLimit={atLimit}
+                userId={user?.id ?? ''}
+                onTypeAdded={handleTypeAdded}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

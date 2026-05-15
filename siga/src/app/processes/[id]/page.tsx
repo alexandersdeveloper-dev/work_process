@@ -124,20 +124,13 @@ export default async function ProcessDetailPage({ params }: { params: Promise<{ 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
         <CollapsibleInfo description={process.description} fields={fields} />
 
-        <div className="card">
-          <div className="card-h">
-            <h3>Trilha de execução</h3>
-            <span className="sub">{steps.length} etapa{steps.length !== 1 ? 's' : ''}</span>
-          </div>
-          {stepsFiltered && (
-            <div style={{ padding: '8px 20px', background: 'var(--panel-alt)', borderBottom: '1px solid var(--line)', fontSize: 12, color: 'var(--muted)' }}>
-              Você tem acesso a {steps.length} etapa{steps.length !== 1 ? 's' : ''} deste processo.
-            </div>
-          )}
-          <div className="card-b">
-            <StepTimeline steps={steps} processId={process.id} canShare={canShare} />
-          </div>
-        </div>
+        <StepTimeline
+          processId={process.id}
+          initialSteps={steps}
+          stepIds={myShare?.step_ids ?? null}
+          stepsFiltered={stepsFiltered}
+          canShare={canShare}
+        />
       </div>
     </>
   )
