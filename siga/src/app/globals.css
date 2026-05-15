@@ -1412,3 +1412,8 @@ table.t {
   0%, 100% { opacity: 0.5; }
   50% { opacity: 0.25; }
 }
+
+@keyframes action-loader-slide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}

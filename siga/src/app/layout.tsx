@@ -4,6 +4,8 @@ import { ShellProvider } from '@/components/shell/ShellProvider'
 import AppShell from '@/components/shell/AppShell'
 import { UserProvider } from '@/lib/user-context'
 import QueryProvider from '@/components/QueryProvider'
+import { ActionLoaderProvider } from '@/contexts/ActionLoaderContext'
+import ActionLoader from '@/components/ActionLoader'
 
 export const metadata: Metadata = {
   title: 'Work Process',
@@ -26,11 +28,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <QueryProvider>
-          <UserProvider>
-            <ShellProvider>
-              <AppShell>{children}</AppShell>
-            </ShellProvider>
-          </UserProvider>
+          <ActionLoaderProvider>
+            <ActionLoader />
+            <UserProvider>
+              <ShellProvider>
+                <AppShell>{children}</AppShell>
+              </ShellProvider>
+            </UserProvider>
+          </ActionLoaderProvider>
         </QueryProvider>
       </body>
     </html>

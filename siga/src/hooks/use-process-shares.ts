@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase'
 import { queryKeys } from '@/lib/query-keys'
 import type { ProcessShare } from '@/types'
@@ -17,5 +17,6 @@ export function useProcessShares(processId: string) {
       return (data ?? []) as ProcessShare[]
     },
     staleTime: 30 * 1000,
+    placeholderData: keepPreviousData,
   })
 }

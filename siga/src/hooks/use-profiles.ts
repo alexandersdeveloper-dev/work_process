@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase'
 import { queryKeys } from '@/lib/query-keys'
 import type { Profile } from '@/types'
@@ -18,5 +18,6 @@ export function useProfiles() {
       return (data ?? []) as Profile[]
     },
     staleTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
   })
 }

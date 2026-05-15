@@ -8,6 +8,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useProcessShares } from '@/hooks/use-process-shares'
 import { queryKeys } from '@/lib/query-keys'
+import { useActionLoader } from '@/contexts/ActionLoaderContext'
 import type { Profile, ProcessShare } from '@/types'
 
 interface Props {
@@ -26,6 +27,7 @@ export default function StepShareModal({ stepId, stepTitle, processId }: Props) 
 
   const { data: users = [], isLoading: loadingUsers } = useProfiles()
   const { data: shares = [] } = useProcessShares(processId)
+  const { showLoader, hideLoader } = useActionLoader()
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -51,46 +53,50 @@ export default function StepShareModal({ stepId, stepTitle, processId }: Props) 
   async function toggleStepAccess(targetUser: Profile) {
     if (loading) return
     setLoading(true)
+    showLoader()
 
-    const existingShare = shares.find((s) => s.shared_with_user_id === targetUser.id)
+    try {
+      const existingShare = shares.find((s) => s.shared_with_user_id === targetUser.id)
 
-    if (!existingShare) {
-      const { data } = await supabase
-        .from('process_shares')
-        .insert({
-          process_id: processId,
-          shared_with_user_id: targetUser.id,
-          shared_by_user_id: user!.id,
-          step_ids: [stepId],
+      if (!existingShare) {
+        await supabase
+          .from('process_shares')
+          .insert({
+            process_id: processId,
+            shared_with_user_id: targetUser.id,
+            shared_by_user_id: user!.id,
+            step_ids: [stepId],
+          })
+          .select('*, profile:profiles!process_shares_shared_with_user_id_fkey(*)')
+          .single()
+        await queryClient.invalidateQueries({ queryKey: queryKeys.processShares(processId) })
+
+        await supabase.from('notifications').insert({
+          user_id: targetUser.id,
+          type: 'process_shared',
+          title: 'Etapa compartilhada com você',
+          body: `A etapa "${stepTitle}" foi compartilhada com você.`,
+          related_id: processId,
+          related_type: 'process',
         })
-        .select('*, profile:profiles!process_shares_shared_with_user_id_fkey(*)')
-        .single()
-      await queryClient.invalidateQueries({ queryKey: queryKeys.processShares(processId) })
-
-      await supabase.from('notifications').insert({
-        user_id: targetUser.id,
-        type: 'process_shared',
-        title: 'Etapa compartilhada com você',
-        body: `A etapa "${stepTitle}" foi compartilhada com você.`,
-        related_id: processId,
-        related_type: 'process',
-      })
-    } else if (existingShare.step_ids === null) {
-      // Acesso completo ao processo — não é possível restringir por aqui
-    } else if (hasStepAccess(existingShare)) {
-      const newIds = existingShare.step_ids.filter((id) => id !== stepId)
-      if (newIds.length === 0) {
-        await supabase.from('process_shares').delete().eq('id', existingShare.id)
+      } else if (existingShare.step_ids === null) {
+        // Acesso completo ao processo — não é possível restringir por aqui
+      } else if (hasStepAccess(existingShare)) {
+        const newIds = existingShare.step_ids.filter((id) => id !== stepId)
+        if (newIds.length === 0) {
+          await supabase.from('process_shares').delete().eq('id', existingShare.id)
+        } else {
+          await supabase.from('process_shares').update({ step_ids: newIds }).eq('id', existingShare.id)
+        }
       } else {
+        const newIds = [...existingShare.step_ids, stepId]
         await supabase.from('process_shares').update({ step_ids: newIds }).eq('id', existingShare.id)
       }
-    } else {
-      const newIds = [...existingShare.step_ids, stepId]
-      await supabase.from('process_shares').update({ step_ids: newIds }).eq('id', existingShare.id)
+      await queryClient.invalidateQueries({ queryKey: queryKeys.processShares(processId) })
+    } finally {
+      setLoading(false)
+      hideLoader()
     }
-    await queryClient.invalidateQueries({ queryKey: queryKeys.processShares(processId) })
-
-    setLoading(false)
   }
 
   const eligibleUsers = users.filter((u) => u.id !== user?.id)

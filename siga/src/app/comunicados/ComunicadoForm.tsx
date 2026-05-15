@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
 import { useProfiles } from '@/hooks/use-profiles'
+import { useActionLoader } from '@/contexts/ActionLoaderContext'
 import type { Comunicado, ComunicadoType } from '@/types'
 import { COMUNICADO_TYPE_LABELS } from '@/types'
 
@@ -31,6 +32,7 @@ export default function ComunicadoForm({ comunicado, onSuccess }: Props) {
 
   const { data: allProfiles = [], isLoading: loadingProfiles } = useProfiles()
   const profiles = allProfiles.filter((p) => p.id !== user?.id)
+  const { showLoader, hideLoader } = useActionLoader()
 
   function toggleUser(id: string) {
     setTargetUserIds((prev) =>
@@ -44,57 +46,43 @@ export default function ComunicadoForm({ comunicado, onSuccess }: Props) {
     if (!targetAll && targetUserIds.length === 0) { setError('Selecione pelo menos um destinatário ou escolha "Todos".'); return }
     setLoading(true)
     setError('')
+    showLoader()
 
-    const resolvedTargetIds = targetAll ? null : targetUserIds
+    try {
+      const resolvedTargetIds = targetAll ? null : targetUserIds
 
-    if (isEdit) {
-      const { error: err } = await supabase
-        .from('comunicados')
-        .update({
-          title: title.trim(),
-          body: body.trim(),
-          type,
-          target_user_ids: resolvedTargetIds,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', comunicado.id)
-      if (err) { setError(err.message); setLoading(false); return }
-    } else {
-      const { data, error: err } = await supabase
-        .from('comunicados')
-        .insert({
-          title: title.trim(),
-          body: body.trim(),
-          type,
-          target_user_ids: resolvedTargetIds,
-          author_id: user!.id,
-        })
-        .select()
-        .single()
-      if (err) { setError(err.message); setLoading(false); return }
-
-      const notifLabel = `Novo ${COMUNICADO_TYPE_LABELS[type]}`
-      const relatedId = (data as Comunicado).id
-
-      if (resolvedTargetIds) {
-        const notifs = resolvedTargetIds.map((uid) => ({
-          user_id: uid,
-          type: 'new_comunicado',
-          title: notifLabel,
-          body: title.trim(),
-          related_id: relatedId,
-          related_type: 'comunicado',
-        }))
-        await supabase.from('notifications').insert(notifs)
+      if (isEdit) {
+        const { error: err } = await supabase
+          .from('comunicados')
+          .update({
+            title: title.trim(),
+            body: body.trim(),
+            type,
+            target_user_ids: resolvedTargetIds,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', comunicado.id)
+        if (err) throw new Error(err.message)
       } else {
-        const { data: allProfiles } = await supabase
-          .from('profiles')
-          .select('id')
-          .neq('id', user!.id)
-          .neq('role', 'admin')
-        if (allProfiles) {
-          const notifs = allProfiles.map((p: { id: string }) => ({
-            user_id: p.id,
+        const { data, error: err } = await supabase
+          .from('comunicados')
+          .insert({
+            title: title.trim(),
+            body: body.trim(),
+            type,
+            target_user_ids: resolvedTargetIds,
+            author_id: user!.id,
+          })
+          .select()
+          .single()
+        if (err) throw new Error(err.message)
+
+        const notifLabel = `Novo ${COMUNICADO_TYPE_LABELS[type]}`
+        const relatedId = (data as Comunicado).id
+
+        if (resolvedTargetIds) {
+          const notifs = resolvedTargetIds.map((uid) => ({
+            user_id: uid,
             type: 'new_comunicado',
             title: notifLabel,
             body: title.trim(),
@@ -102,15 +90,36 @@ export default function ComunicadoForm({ comunicado, onSuccess }: Props) {
             related_type: 'comunicado',
           }))
           await supabase.from('notifications').insert(notifs)
+        } else {
+          const { data: allProfiles } = await supabase
+            .from('profiles')
+            .select('id')
+            .neq('id', user!.id)
+            .neq('role', 'admin')
+          if (allProfiles) {
+            const notifs = allProfiles.map((p: { id: string }) => ({
+              user_id: p.id,
+              type: 'new_comunicado',
+              title: notifLabel,
+              body: title.trim(),
+              related_id: relatedId,
+              related_type: 'comunicado',
+            }))
+            await supabase.from('notifications').insert(notifs)
+          }
         }
       }
-    }
 
-    setLoading(false)
-    if (onSuccess) {
-      onSuccess()
-    } else {
-      router.push('/comunicados')
+      if (onSuccess) {
+        onSuccess()
+      } else {
+        router.push('/comunicados')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao salvar.')
+    } finally {
+      setLoading(false)
+      hideLoader()
     }
   }
 

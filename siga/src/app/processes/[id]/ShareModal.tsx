@@ -9,6 +9,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useProcessShares } from '@/hooks/use-process-shares'
 import { queryKeys } from '@/lib/query-keys'
+import { useActionLoader } from '@/contexts/ActionLoaderContext'
 import type { Profile, ProcessShare } from '@/types'
 
 interface Props {
@@ -28,6 +29,7 @@ export default function ShareModal({ processId, processOwnerId, existingShares }
 
   const { data: users = [], isLoading: loadingUsers } = useProfiles()
   const { data: shares = [] } = useProcessShares(processId)
+  const { showLoader, hideLoader } = useActionLoader()
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -49,36 +51,41 @@ export default function ShareModal({ processId, processOwnerId, existingShares }
   async function toggleShare(targetUser: Profile) {
     if (loading) return
     setLoading(true)
+    showLoader()
     const alreadyShared = sharedWithIds.has(targetUser.id)
 
-    if (alreadyShared) {
-      await supabase
-        .from('process_shares')
-        .delete()
-        .eq('process_id', processId)
-        .eq('shared_with_user_id', targetUser.id)
-    } else {
-      await supabase
-        .from('process_shares')
-        .insert({
-          process_id: processId,
-          shared_with_user_id: targetUser.id,
-          shared_by_user_id: user!.id,
+    try {
+      if (alreadyShared) {
+        await supabase
+          .from('process_shares')
+          .delete()
+          .eq('process_id', processId)
+          .eq('shared_with_user_id', targetUser.id)
+      } else {
+        await supabase
+          .from('process_shares')
+          .insert({
+            process_id: processId,
+            shared_with_user_id: targetUser.id,
+            shared_by_user_id: user!.id,
+          })
+
+        await supabase.from('notifications').insert({
+          user_id: targetUser.id,
+          type: 'process_shared',
+          title: 'Processo compartilhado com você',
+          body: `Um processo foi compartilhado com você.`,
+          related_id: processId,
+          related_type: 'process',
         })
+      }
 
-      await supabase.from('notifications').insert({
-        user_id: targetUser.id,
-        type: 'process_shared',
-        title: 'Processo compartilhado com você',
-        body: `Um processo foi compartilhado com você.`,
-        related_id: processId,
-        related_type: 'process',
-      })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.processShares(processId) })
+      router.refresh()
+    } finally {
+      setLoading(false)
+      hideLoader()
     }
-
-    await queryClient.invalidateQueries({ queryKey: queryKeys.processShares(processId) })
-    setLoading(false)
-    router.refresh()
   }
 
   const eligibleUsers = users.filter(

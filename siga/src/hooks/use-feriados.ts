@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase'
 import { queryKeys } from '@/lib/query-keys'
 import type { Feriado } from '@/types'
@@ -24,6 +24,7 @@ export function useFeriados(initialData?: Feriado[]) {
     queryFn: fetchFeriados,
     initialData,
     staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   })
 }
 

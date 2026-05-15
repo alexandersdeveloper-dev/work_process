@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase'
 import { queryKeys } from '@/lib/query-keys'
 import type { ProcessDeadline } from '@/types'
@@ -40,5 +40,6 @@ export function useDeadlines(userId: string, role: string) {
     queryFn: () => fetchDeadlines(userId, role),
     staleTime: 2 * 60 * 1000,
     enabled: !!userId && !!role,
+    placeholderData: keepPreviousData,
   })
 }

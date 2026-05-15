@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
 import { useProfiles } from '@/hooks/use-profiles'
+import { useActionLoader } from '@/contexts/ActionLoaderContext'
 import type { AusenciaType } from '@/types'
 
 interface Props {
@@ -22,6 +23,7 @@ export default function AusenciaDrawer({ selectedDays, onRemoveDay, onClose, onR
   const { user } = useUser()
   const supabase = createClient()
   const { data: profiles = [], isLoading: loadingProfiles } = useProfiles()
+  const { showLoader, hideLoader } = useActionLoader()
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [type, setType] = useState<AusenciaType>('folga')
   const [description, setDescription] = useState('')
@@ -44,6 +46,7 @@ export default function AusenciaDrawer({ selectedDays, onRemoveDay, onClose, onR
     }
     setLoading(true)
     setError('')
+    showLoader()
 
     const registeredBy = user!.id
 
@@ -61,7 +64,7 @@ export default function AusenciaDrawer({ selectedDays, onRemoveDay, onClose, onR
           )
         )
         const failed = results.find((r) => r.error)
-        if (failed) { setError(failed.error!.message); setLoading(false); return }
+        if (failed) throw new Error(failed.error!.message)
 
         await Promise.all(
           results.map((r) =>
@@ -85,7 +88,7 @@ export default function AusenciaDrawer({ selectedDays, onRemoveDay, onClose, onR
           })
         )
         const failed = results.find((r) => r.error)
-        if (failed) { setError(failed.error!.message); setLoading(false); return }
+        if (failed) throw new Error(failed.error!.message)
 
         await Promise.all(
           results.map((r, i) =>
@@ -98,14 +101,14 @@ export default function AusenciaDrawer({ selectedDays, onRemoveDay, onClose, onR
           )
         )
       }
-    } catch {
-      setError('Erro ao registrar. Tente novamente.')
-      setLoading(false)
-      return
-    }
 
-    setLoading(false)
-    onRegistered()
+      onRegistered()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao registrar. Tente novamente.')
+    } finally {
+      setLoading(false)
+      hideLoader()
+    }
   }
 
   const allSelected = profiles.length > 0 && selectedIds.length === profiles.length

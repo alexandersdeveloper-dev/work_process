@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import type { Feriado, FeriadoType, FeriadoScope, FeriadoRecurrence, FeriadoImpact } from '@/types'
 import { getPascalDate } from '@/lib/easter'
 import { useFeriados, useToggleFeriadoActive, useDeleteFeriado, useCreateFeriado, useUpdateFeriado } from '@/hooks/use-feriados'
+import { useActionLoader } from '@/contexts/ActionLoaderContext'
 
 const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 const WEEKDAYS_PT = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado']
@@ -348,6 +349,7 @@ export default function FeriadosClient({ initialFeriados }: { initialFeriados: F
   const deleteFeriado = useDeleteFeriado()
   const createFeriado = useCreateFeriado()
   const updateFeriado = useUpdateFeriado()
+  const { showLoader, hideLoader } = useActionLoader()
 
   const [modal, setModal] = useState<'create' | 'edit' | null>(null)
   const [editing, setEditing] = useState<Feriado | null>(null)
@@ -420,6 +422,7 @@ export default function FeriadosClient({ initialFeriados }: { initialFeriados: F
     }
 
     try {
+      showLoader()
       if (modal === 'edit' && editing) {
         await updateFeriado.mutateAsync({ id: editing.id, body: payload })
       } else {
@@ -428,20 +431,26 @@ export default function FeriadosClient({ initialFeriados }: { initialFeriados: F
       closeModal()
     } catch (err) {
       setModalError(err instanceof Error ? err.message : 'Erro ao salvar.')
+    } finally {
+      hideLoader()
     }
   }
 
   async function handleDelete(id: string) {
     try {
+      showLoader()
       await deleteFeriado.mutateAsync(id)
       setConfirmDeleteId(null)
     } catch {
       // erro já tratado pelo onError do mutation
+    } finally {
+      hideLoader()
     }
   }
 
   function handleToggleActive(f: Feriado) {
-    toggleActive.mutate({ id: f.id, active: !f.active })
+    showLoader()
+    toggleActive.mutate({ id: f.id, active: !f.active }, { onSettled: () => hideLoader() })
   }
 
   return (

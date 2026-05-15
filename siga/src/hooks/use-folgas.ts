@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase'
 import { queryKeys } from '@/lib/query-keys'
 import type { Folga } from '@/types'
@@ -21,6 +21,7 @@ export function useFolgas(userId: string, role: string) {
     queryFn: () => fetchFolgas(userId, role),
     staleTime: 2 * 60 * 1000,
     enabled: !!userId && !!role,
+    placeholderData: keepPreviousData,
   })
 }
 
