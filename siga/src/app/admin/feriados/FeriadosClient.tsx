@@ -6,6 +6,7 @@ import type { Feriado, FeriadoType, FeriadoScope, FeriadoRecurrence, FeriadoImpa
 import { getPascalDate } from '@/lib/easter'
 import { useFeriados, useToggleFeriadoActive, useDeleteFeriado, useCreateFeriado, useUpdateFeriado } from '@/hooks/use-feriados'
 import { useActionLoader } from '@/contexts/ActionLoaderContext'
+import { useToast } from '@/contexts/ToastContext'
 
 const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 const WEEKDAYS_PT = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado']
@@ -350,6 +351,7 @@ export default function FeriadosClient({ initialFeriados }: { initialFeriados: F
   const createFeriado = useCreateFeriado()
   const updateFeriado = useUpdateFeriado()
   const { showLoader, hideLoader } = useActionLoader()
+  const { showToast } = useToast()
 
   const [modal, setModal] = useState<'create' | 'edit' | null>(null)
   const [editing, setEditing] = useState<Feriado | null>(null)
@@ -425,12 +427,14 @@ export default function FeriadosClient({ initialFeriados }: { initialFeriados: F
       showLoader()
       if (modal === 'edit' && editing) {
         await updateFeriado.mutateAsync({ id: editing.id, body: payload })
+        showToast('Feriado atualizado')
       } else {
         await createFeriado.mutateAsync(payload)
+        showToast('Feriado criado')
       }
       closeModal()
-    } catch (err) {
-      setModalError(err instanceof Error ? err.message : 'Erro ao salvar.')
+    } catch {
+      showToast('Erro ao salvar feriado.', 'error')
     } finally {
       hideLoader()
     }
@@ -441,8 +445,9 @@ export default function FeriadosClient({ initialFeriados }: { initialFeriados: F
       showLoader()
       await deleteFeriado.mutateAsync(id)
       setConfirmDeleteId(null)
+      showToast('Feriado excluído')
     } catch {
-      // erro já tratado pelo onError do mutation
+      showToast('Erro ao excluir feriado.', 'error')
     } finally {
       hideLoader()
     }
@@ -450,7 +455,14 @@ export default function FeriadosClient({ initialFeriados }: { initialFeriados: F
 
   function handleToggleActive(f: Feriado) {
     showLoader()
-    toggleActive.mutate({ id: f.id, active: !f.active }, { onSettled: () => hideLoader() })
+    toggleActive.mutate(
+      { id: f.id, active: !f.active },
+      {
+        onSuccess: () => showToast(f.active ? 'Feriado desativado' : 'Feriado ativado'),
+        onError: () => showToast('Erro ao atualizar feriado.', 'error'),
+        onSettled: () => hideLoader(),
+      }
+    )
   }
 
   return (

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
 import { useUserTypes } from '@/lib/use-user-types'
+import { useActionLoader } from '@/contexts/ActionLoaderContext'
+import { useToast } from '@/contexts/ToastContext'
 import type { Step, StepMarkState } from '@/types'
 import StepShareModal from './StepShareModal'
 import DateTimePicker from '@/components/DateTimePicker'
@@ -56,6 +58,9 @@ interface StepItemProps {
 }
 
 const StepItem = memo(function StepItem({ step, isLast, onSaved, processId, canShare, allTypes, atLimit, userId, onTypeAdded }: StepItemProps) {
+  const { showLoader, hideLoader } = useActionLoader()
+  const { showToast } = useToast()
+
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [markState, setMarkState] = useState<StepMarkState>(step.mark_state ?? 'neutral')
@@ -101,9 +106,12 @@ const StepItem = memo(function StepItem({ step, isLast, onSaved, processId, canS
       .from('user_step_types')
       .insert({ user_id: userId, label: trimmed })
 
-    if (!err) {
+    if (err) {
+      showToast('Erro ao adicionar tipo.', 'error')
+    } else {
       onTypeAdded(trimmed)
       setForm((f) => ({ ...f, stepType: trimmed }))
+      showToast('Tipo adicionado')
     }
     setAddingType(false)
     setNewType('')
@@ -114,18 +122,29 @@ const StepItem = memo(function StepItem({ step, isLast, onSaved, processId, canS
     e.preventDefault()
     if (!form.title.trim()) return
     setSaving(true)
-    await supabase.from('steps').update({
-      title: form.title.trim(),
-      description: form.description.trim() || null,
-      step_type: form.stepType,
-      performed_by: form.performedBy.trim() || null,
-      reference_link: form.referenceLink.trim() || null,
-      created_at: new Date(form.datetime).toISOString(),
-      updated_at: new Date().toISOString(),
-    }).eq('id', step.id)
-    setSaving(false)
-    setEditing(false)
-    onSaved()
+    showLoader()
+    try {
+      const { error: err } = await supabase.from('steps').update({
+        title: form.title.trim(),
+        description: form.description.trim() || null,
+        step_type: form.stepType,
+        performed_by: form.performedBy.trim() || null,
+        reference_link: form.referenceLink.trim() || null,
+        created_at: new Date(form.datetime).toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq('id', step.id)
+
+      if (err) throw err
+
+      showToast('Etapa atualizada')
+      setEditing(false)
+      onSaved()
+    } catch {
+      showToast('Erro ao salvar etapa.', 'error')
+    } finally {
+      setSaving(false)
+      hideLoader()
+    }
   }
 
   const remaining = STEP_TYPE_LIMIT - allTypes.length
@@ -240,7 +259,6 @@ const StepItem = memo(function StepItem({ step, isLast, onSaved, processId, canS
         {markState === 'positive' ? '✓' : markState === 'negative' ? '✗' : '●'}
       </div>
       <div className="tl-body" style={{ flex: 1, minWidth: 0 }}>
-        {/* Linha de título + ações em fluxo normal — sem position:absolute */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
           <div className="tl-t" style={{ flex: 1, minWidth: 0 }}>
             {step.title}

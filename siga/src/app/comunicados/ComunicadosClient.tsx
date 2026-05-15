@@ -11,6 +11,8 @@ import type { Comunicado, ComunicadoType } from '@/types'
 import { COMUNICADO_TYPE_LABELS } from '@/types'
 import { useComunicados } from '@/hooks/use-comunicados'
 import { queryKeys } from '@/lib/query-keys'
+import { useActionLoader } from '@/contexts/ActionLoaderContext'
+import { useToast } from '@/contexts/ToastContext'
 import ComunicadoForm from './ComunicadoForm'
 
 function formatDate(iso: string) {
@@ -34,14 +36,26 @@ function ComunicadoCard({ comunicado, canManage, onDelete }: {
   const [expanded, setExpanded] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const supabase = createClient()
+  const { showLoader, hideLoader } = useActionLoader()
+  const { showToast } = useToast()
   const isEdited = comunicado.updated_at !== comunicado.created_at
   const typePill = TYPE_PILL[comunicado.type] ?? 'info'
 
   async function handleDelete() {
     if (!confirm('Excluir este comunicado?')) return
     setDeleting(true)
-    await supabase.from('comunicados').delete().eq('id', comunicado.id)
-    onDelete(comunicado.id)
+    showLoader()
+    try {
+      const { error: err } = await supabase.from('comunicados').delete().eq('id', comunicado.id)
+      if (err) throw err
+      showToast('Comunicado excluído')
+      onDelete(comunicado.id)
+    } catch {
+      showToast('Erro ao excluir comunicado.', 'error')
+    } finally {
+      setDeleting(false)
+      hideLoader()
+    }
   }
 
   return (

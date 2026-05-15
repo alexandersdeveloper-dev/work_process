@@ -10,6 +10,7 @@ import { useProfiles } from '@/hooks/use-profiles'
 import { useProcessShares } from '@/hooks/use-process-shares'
 import { queryKeys } from '@/lib/query-keys'
 import { useActionLoader } from '@/contexts/ActionLoaderContext'
+import { useToast } from '@/contexts/ToastContext'
 import type { Profile, ProcessShare } from '@/types'
 
 interface Props {
@@ -30,6 +31,7 @@ export default function ShareModal({ processId, processOwnerId, existingShares }
   const { data: users = [], isLoading: loadingUsers } = useProfiles()
   const { data: shares = [] } = useProcessShares(processId)
   const { showLoader, hideLoader } = useActionLoader()
+  const { showToast } = useToast()
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -82,6 +84,9 @@ export default function ShareModal({ processId, processOwnerId, existingShares }
 
       await queryClient.invalidateQueries({ queryKey: queryKeys.processShares(processId) })
       router.refresh()
+      showToast(alreadyShared ? 'Acesso removido' : 'Processo compartilhado')
+    } catch {
+      showToast('Erro ao atualizar compartilhamento.', 'error')
     } finally {
       setLoading(false)
       hideLoader()

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
 import { useUserTypes } from '@/lib/use-user-types'
+import { useActionLoader } from '@/contexts/ActionLoaderContext'
+import { useToast } from '@/contexts/ToastContext'
 import type { Process, ProcessStatus, Priority } from '@/types'
 
 const PROCESS_TYPE_LIMIT = 15
@@ -50,6 +52,8 @@ interface Props { process?: Process }
 export default function ProcessForm({ process }: Props) {
   const router = useRouter()
   const { user } = useUser()
+  const { showLoader, hideLoader } = useActionLoader()
+  const { showToast } = useToast()
   const isEdit = !!process
 
   const { customTypes, addType } = useUserTypes('user_process_types')
@@ -67,7 +71,7 @@ export default function ProcessForm({ process }: Props) {
   const [portalSection, setPortalSection] = useState(process?.portal_section ?? '')
   const [deadline, setDeadline]         = useState(process?.deadline ?? '')
   const [loading, setLoading]           = useState(false)
-  const [error, setError]               = useState('')
+  const [validationError, setValidationError] = useState('')
 
   // Types: DEFAULT + custom from DB + current process type (se não estiver na lista)
   const resolvedProcessType = process?.type ? resolveType(process.type) : null
@@ -107,9 +111,12 @@ export default function ProcessForm({ process }: Props) {
       .from('user_process_types')
       .insert({ user_id: user.id, label: trimmed })
 
-    if (!err) {
+    if (err) {
+      showToast('Erro ao adicionar tipo.', 'error')
+    } else {
       addType(trimmed)
       setType(trimmed)
+      showToast('Tipo adicionado')
     }
     setAddingType(false)
     setNewType('')
@@ -119,11 +126,12 @@ export default function ProcessForm({ process }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!title.trim() || !responsible.trim()) {
-      setError('Título e responsável são obrigatórios.')
+      setValidationError('Título e responsável são obrigatórios.')
       return
     }
     setLoading(true)
-    setError('')
+    setValidationError('')
+    showLoader()
 
     const payload = {
       title: title.trim(),
@@ -137,24 +145,26 @@ export default function ProcessForm({ process }: Props) {
       updated_at: new Date().toISOString(),
     }
 
-    let result
-    if (isEdit) {
-      result = await supabase.from('processes').update(payload).eq('id', process.id)
-    } else {
-      result = await supabase.from('processes').insert({
-        ...payload,
-        owner_id: user?.id ?? null,
-      }).select().single()
-    }
+    try {
+      let result
+      if (isEdit) {
+        result = await supabase.from('processes').update(payload).eq('id', process.id)
+      } else {
+        result = await supabase.from('processes').insert({
+          ...payload,
+          owner_id: user?.id ?? null,
+        }).select().single()
+      }
 
-    if (result.error) {
-      setError(result.error.message)
+      if (result.error) throw result.error
+
+      const id = isEdit ? process.id : (result.data as Process).id
+      router.push(`/processes/${id}`)
+    } catch {
+      showToast('Erro ao salvar processo.', 'error')
       setLoading(false)
-      return
+      hideLoader()
     }
-
-    const id = isEdit ? process.id : (result.data as Process).id
-    router.push(`/processes/${id}`)
   }
 
   return (
@@ -260,7 +270,7 @@ export default function ProcessForm({ process }: Props) {
         </div>
       </div>
 
-      {error && <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 12 }}>{error}</p>}
+      {validationError && <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 12 }}>{validationError}</p>}
 
       <div className="form-actions">
         <button type="submit" className="btn primary" disabled={loading}>

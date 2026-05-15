@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
 import { useUserTypes } from '@/lib/use-user-types'
+import { useActionLoader } from '@/contexts/ActionLoaderContext'
+import { useToast } from '@/contexts/ToastContext'
 import DateTimePicker from '@/components/DateTimePicker'
 
 const STEP_TYPE_LIMIT = 15
@@ -20,6 +22,8 @@ const DEFAULT_TYPES = [
 export default function AddStepForm({ processId, onSuccess }: { processId: string; onSuccess?: () => void }) {
   const router = useRouter()
   const { user } = useUser()
+  const { showLoader, hideLoader } = useActionLoader()
+  const { showToast } = useToast()
 
   const { customTypes, addType } = useUserTypes('user_step_types')
   const [stepType, setStepType]       = useState('Nota')
@@ -34,7 +38,7 @@ export default function AddStepForm({ processId, onSuccess }: { processId: strin
   const [referenceLink, setReferenceLink] = useState('')
   const [datetime, setDatetime]         = useState('')
   const [loading, setLoading]           = useState(false)
-  const [error, setError]               = useState('')
+  const [validationError, setValidationError] = useState('')
 
   const allTypes = [...DEFAULT_TYPES, ...customTypes]
   const atLimit  = allTypes.length >= STEP_TYPE_LIMIT
@@ -66,9 +70,12 @@ export default function AddStepForm({ processId, onSuccess }: { processId: strin
       .from('user_step_types')
       .insert({ user_id: user.id, label: trimmed })
 
-    if (!err) {
+    if (err) {
+      showToast('Erro ao adicionar tipo.', 'error')
+    } else {
       addType(trimmed)
       setStepType(trimmed)
+      showToast('Tipo adicionado')
     }
     setAdding(false)
     setNewType('')
@@ -77,40 +84,48 @@ export default function AddStepForm({ processId, onSuccess }: { processId: strin
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!title.trim()) { setError('Título é obrigatório.'); return }
+    if (!title.trim()) { setValidationError('Título é obrigatório.'); return }
     setLoading(true)
-    setError('')
+    setValidationError('')
+    showLoader()
 
     const createdAt = datetime
       ? new Date(datetime).toISOString()
       : new Date().toISOString()
 
-    const { error: err } = await supabase.from('steps').insert({
-      process_id: processId,
-      title: title.trim(),
-      description: description.trim() || null,
-      step_type: stepType,
-      performed_by: performedBy.trim() || null,
-      reference_link: referenceLink.trim() || null,
-      created_at: createdAt,
-    })
+    try {
+      const { error: err } = await supabase.from('steps').insert({
+        process_id: processId,
+        title: title.trim(),
+        description: description.trim() || null,
+        step_type: stepType,
+        performed_by: performedBy.trim() || null,
+        reference_link: referenceLink.trim() || null,
+        created_at: createdAt,
+      })
 
-    if (err) { setError(err.message); setLoading(false); return }
+      if (err) throw err
 
-    await supabase
-      .from('processes')
-      .update({ updated_at: new Date().toISOString() })
-      .eq('id', processId)
+      await supabase
+        .from('processes')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', processId)
 
-    setTitle('')
-    setDescription('')
-    setStepType('Nota')
-    setPerformedBy('')
-    setReferenceLink('')
-    setDatetime('')
-    setLoading(false)
-    router.refresh()
-    onSuccess?.()
+      setTitle('')
+      setDescription('')
+      setStepType('Nota')
+      setPerformedBy('')
+      setReferenceLink('')
+      setDatetime('')
+      showToast('Etapa registrada')
+      router.refresh()
+      onSuccess?.()
+    } catch {
+      showToast('Erro ao registrar etapa.', 'error')
+    } finally {
+      setLoading(false)
+      hideLoader()
+    }
   }
 
   return (
@@ -221,7 +236,7 @@ export default function AddStepForm({ processId, onSuccess }: { processId: strin
         />
       </div>
 
-      {error && <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 8 }}>{error}</p>}
+      {validationError && <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 8 }}>{validationError}</p>}
 
       <button type="submit" className="btn primary" disabled={loading}>
         {loading ? 'Registrando…' : '+ Registrar etapa'}

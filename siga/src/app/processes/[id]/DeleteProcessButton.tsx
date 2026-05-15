@@ -4,12 +4,15 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useActionLoader } from '@/contexts/ActionLoaderContext'
+import { useToast } from '@/contexts/ToastContext'
 
 export default function DeleteProcessButton({ id }: { id: string }) {
   const router = useRouter()
+  const { showLoader, hideLoader } = useActionLoader()
+  const { showToast } = useToast()
   const [confirming, setConfirming] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
@@ -27,14 +30,21 @@ export default function DeleteProcessButton({ id }: { id: string }) {
 
   async function handleDelete() {
     setLoading(true)
-    const { error: err } = await supabase.from('processes').delete().eq('id', id)
-    if (err) { setError(err.message); setLoading(false); return }
-    router.push('/processes')
+    showLoader()
+    try {
+      const { error: err } = await supabase.from('processes').delete().eq('id', id)
+      if (err) throw err
+      showToast('Processo excluído')
+      router.push('/processes')
+    } catch {
+      showToast('Erro ao excluir processo.', 'error')
+      setLoading(false)
+      hideLoader()
+    }
   }
 
   return (
     <>
-      {error && <span style={{ color: 'var(--danger)', fontSize: 12 }}>{error}</span>}
       <button className="btn danger-btn" onClick={() => setConfirming(true)}>
         Excluir
       </button>

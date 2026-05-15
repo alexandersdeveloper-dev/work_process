@@ -6,6 +6,7 @@ import { UserProvider } from '@/lib/user-context'
 import QueryProvider from '@/components/QueryProvider'
 import { ActionLoaderProvider } from '@/contexts/ActionLoaderContext'
 import ActionLoader from '@/components/ActionLoader'
+import { ToastProvider } from '@/contexts/ToastContext'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import type { Profile } from '@/types'
 
@@ -43,14 +44,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <QueryProvider>
-          <ActionLoaderProvider>
-            <ActionLoader />
-            <UserProvider initialUser={user} initialProfile={profile}>
-              <ShellProvider>
-                <AppShell>{children}</AppShell>
-              </ShellProvider>
-            </UserProvider>
-          </ActionLoaderProvider>
+          <ToastProvider>
+            <ActionLoaderProvider>
+              <ActionLoader />
+              <UserProvider initialUser={user} initialProfile={profile}>
+                <ShellProvider>
+                  <AppShell>{children}</AppShell>
+                </ShellProvider>
+              </UserProvider>
+            </ActionLoaderProvider>
+          </ToastProvider>
         </QueryProvider>
       </body>
     </html>

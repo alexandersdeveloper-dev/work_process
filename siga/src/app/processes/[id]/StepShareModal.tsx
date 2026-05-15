@@ -9,6 +9,7 @@ import { useProfiles } from '@/hooks/use-profiles'
 import { useProcessShares } from '@/hooks/use-process-shares'
 import { queryKeys } from '@/lib/query-keys'
 import { useActionLoader } from '@/contexts/ActionLoaderContext'
+import { useToast } from '@/contexts/ToastContext'
 import type { Profile, ProcessShare } from '@/types'
 
 interface Props {
@@ -28,6 +29,7 @@ export default function StepShareModal({ stepId, stepTitle, processId }: Props) 
   const { data: users = [], isLoading: loadingUsers } = useProfiles()
   const { data: shares = [] } = useProcessShares(processId)
   const { showLoader, hideLoader } = useActionLoader()
+  const { showToast } = useToast()
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -93,6 +95,9 @@ export default function StepShareModal({ stepId, stepTitle, processId }: Props) 
         await supabase.from('process_shares').update({ step_ids: newIds }).eq('id', existingShare.id)
       }
       await queryClient.invalidateQueries({ queryKey: queryKeys.processShares(processId) })
+      showToast('Compartilhamento atualizado')
+    } catch {
+      showToast('Erro ao atualizar compartilhamento.', 'error')
     } finally {
       setLoading(false)
       hideLoader()

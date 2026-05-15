@@ -6,6 +6,8 @@ import { useUser } from '@/lib/user-context'
 import { useQueryClient } from '@tanstack/react-query'
 import { useProcessTypes, useStepTypes, type CustomTypeRow } from '@/hooks/use-custom-types'
 import { queryKeys } from '@/lib/query-keys'
+import { useActionLoader } from '@/contexts/ActionLoaderContext'
+import { useToast } from '@/contexts/ToastContext'
 
 const PROCESS_TYPE_LIMIT = 15
 const STEP_TYPE_LIMIT = 15
@@ -36,6 +38,8 @@ export default function ConfiguracoesClient() {
   const { user } = useUser()
   const userId = user?.id ?? ''
   const queryClient = useQueryClient()
+  const { showLoader, hideLoader } = useActionLoader()
+  const { showToast } = useToast()
 
   const [tab, setTab] = useState<Tab>('processos')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -44,7 +48,7 @@ export default function ConfiguracoesClient() {
   const [adding, setAdding] = useState(false)
   const [newLabel, setNewLabel] = useState('')
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const [validationError, setValidationError] = useState('')
   const newLabelRef = useRef<HTMLInputElement>(null)
 
   const { data: processTypes = [], isLoading: processTypesLoading } = useProcessTypes(userId)
@@ -69,58 +73,79 @@ export default function ConfiguracoesClient() {
     setDeletingId(null)
     setAdding(false)
     setNewLabel('')
-    setError('')
+    setValidationError('')
   }
 
   async function handleAdd() {
     const trimmed = newLabel.trim()
     if (!trimmed || !user) return
-    if (atLimit) { setError(`Limite de ${limit} tipos personalizados atingido.`); return }
+    if (atLimit) { setValidationError(`Limite de ${limit} tipos personalizados atingido.`); return }
     setSaving(true)
-    setError('')
-    const { error: err } = await supabase
-      .from(table)
-      .insert({ user_id: user.id, label: trimmed })
-    setSaving(false)
-    if (err) { setError('Erro ao adicionar tipo.'); return }
-    queryClient.invalidateQueries({ queryKey })
-    setNewLabel('')
-    setAdding(false)
+    setValidationError('')
+    showLoader()
+    try {
+      const { error: err } = await supabase
+        .from(table)
+        .insert({ user_id: user.id, label: trimmed })
+      if (err) throw err
+      queryClient.invalidateQueries({ queryKey })
+      setNewLabel('')
+      setAdding(false)
+      showToast('Tipo adicionado')
+    } catch {
+      showToast('Erro ao adicionar tipo.', 'error')
+    } finally {
+      setSaving(false)
+      hideLoader()
+    }
   }
 
   async function handleRename(row: CustomTypeRow) {
     const trimmed = editLabel.trim()
     if (!trimmed || trimmed === row.label || !user) { resetActions(); return }
     setSaving(true)
-    setError('')
+    showLoader()
+    try {
+      const { error: err } = await supabase.from(table).update({ label: trimmed }).eq('id', row.id)
+      if (err) throw err
 
-    const { error: err } = await supabase.from(table).update({ label: trimmed }).eq('id', row.id)
-    if (err) { setSaving(false); setError('Erro ao salvar.'); return }
-
-    if (tab === 'processos') {
-      await supabase.from('processes').update({ type: trimmed }).eq('type', row.label)
-    } else {
-      const { data: procs } = await supabase.from('processes').select('id').eq('owner_id', user.id)
-      if (procs && procs.length > 0) {
-        const ids = procs.map((p: { id: string }) => p.id)
-        await supabase.from('steps').update({ step_type: trimmed }).eq('step_type', row.label).in('process_id', ids)
+      if (tab === 'processos') {
+        await supabase.from('processes').update({ type: trimmed }).eq('type', row.label)
+      } else {
+        const { data: procs } = await supabase.from('processes').select('id').eq('owner_id', user.id)
+        if (procs && procs.length > 0) {
+          const ids = procs.map((p: { id: string }) => p.id)
+          await supabase.from('steps').update({ step_type: trimmed }).eq('step_type', row.label).in('process_id', ids)
+        }
       }
-    }
 
-    queryClient.invalidateQueries({ queryKey })
-    setSaving(false)
-    setEditingId(null)
-    setEditLabel('')
+      queryClient.invalidateQueries({ queryKey })
+      setEditingId(null)
+      setEditLabel('')
+      showToast('Tipo renomeado')
+    } catch {
+      showToast('Erro ao renomear tipo.', 'error')
+    } finally {
+      setSaving(false)
+      hideLoader()
+    }
   }
 
   async function handleDelete(row: CustomTypeRow) {
     setSaving(true)
-    setError('')
-    const { error: err } = await supabase.from(table).delete().eq('id', row.id)
-    setSaving(false)
-    if (err) { setError('Erro ao excluir.'); return }
-    queryClient.invalidateQueries({ queryKey })
-    setDeletingId(null)
+    showLoader()
+    try {
+      const { error: err } = await supabase.from(table).delete().eq('id', row.id)
+      if (err) throw err
+      queryClient.invalidateQueries({ queryKey })
+      setDeletingId(null)
+      showToast('Tipo excluído')
+    } catch {
+      showToast('Erro ao excluir tipo.', 'error')
+    } finally {
+      setSaving(false)
+      hideLoader()
+    }
   }
 
   if (isLoading) {
@@ -199,7 +224,7 @@ export default function ConfiguracoesClient() {
           {!adding && (
             <button
               className="btn ghost sm"
-              onClick={() => { setAdding(true); setEditingId(null); setDeletingId(null); setError('') }}
+              onClick={() => { setAdding(true); setEditingId(null); setDeletingId(null); setValidationError('') }}
               disabled={atLimit}
               title={atLimit ? `Limite de ${limit} tipos atingido` : undefined}
             >
@@ -219,7 +244,7 @@ export default function ConfiguracoesClient() {
                 onChange={(e) => setNewLabel(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') { e.preventDefault(); handleAdd() }
-                  if (e.key === 'Escape') { setAdding(false); setNewLabel(''); setError('') }
+                  if (e.key === 'Escape') { setAdding(false); setNewLabel(''); setValidationError('') }
                 }}
                 placeholder={tab === 'processos' ? 'Ex: Licitação, Contrato…' : 'Ex: Aprovação, Homologação…'}
               />
@@ -228,14 +253,14 @@ export default function ConfiguracoesClient() {
               <button className="btn primary sm" onClick={handleAdd} disabled={saving || !newLabel.trim()}>
                 {saving ? 'Salvando…' : 'Adicionar'}
               </button>
-              <button className="btn ghost sm" onClick={() => { setAdding(false); setNewLabel(''); setError('') }}>
+              <button className="btn ghost sm" onClick={() => { setAdding(false); setNewLabel(''); setValidationError('') }}>
                 Cancelar
               </button>
             </div>
           </div>
         )}
 
-        {error && <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 10 }}>{error}</p>}
+        {validationError && <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 10 }}>{validationError}</p>}
 
         {currentTypes.length === 0 && !adding ? (
           <div style={{
@@ -262,7 +287,7 @@ export default function ConfiguracoesClient() {
                             onChange={(e) => setEditLabel(e.target.value)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') { e.preventDefault(); handleRename(row) }
-                              if (e.key === 'Escape') { setEditingId(null); setEditLabel(''); setError('') }
+                              if (e.key === 'Escape') { setEditingId(null); setEditLabel(''); setValidationError('') }
                             }}
                             style={{ width: '100%', maxWidth: 320 }}
                             autoFocus
@@ -280,7 +305,7 @@ export default function ConfiguracoesClient() {
                             <button className="btn primary sm" onClick={() => handleRename(row)} disabled={saving}>
                               {saving ? '…' : 'Salvar'}
                             </button>
-                            <button className="btn ghost sm" onClick={() => { setEditingId(null); setEditLabel(''); setError('') }}>
+                            <button className="btn ghost sm" onClick={() => { setEditingId(null); setEditLabel(''); setValidationError('') }}>
                               Cancelar
                             </button>
                           </div>
@@ -301,14 +326,14 @@ export default function ConfiguracoesClient() {
                           <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
                             <button
                               type="button"
-                              onClick={() => { setEditingId(row.id); setEditLabel(row.label); setDeletingId(null); setError('') }}
+                              onClick={() => { setEditingId(row.id); setEditLabel(row.label); setDeletingId(null); setValidationError('') }}
                               style={{ fontSize: 11, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 8px' }}
                             >
                               editar
                             </button>
                             <button
                               type="button"
-                              onClick={() => { setDeletingId(row.id); setEditingId(null); setError('') }}
+                              onClick={() => { setDeletingId(row.id); setEditingId(null); setValidationError('') }}
                               style={{ fontSize: 11, color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 8px', opacity: 0.7 }}
                             >
                               excluir

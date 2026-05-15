@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useActionLoader } from '@/contexts/ActionLoaderContext'
+import { useToast } from '@/contexts/ToastContext'
 import type { Comunicado, ComunicadoType } from '@/types'
 import { COMUNICADO_TYPE_LABELS } from '@/types'
 
@@ -33,6 +34,7 @@ export default function ComunicadoForm({ comunicado, onSuccess }: Props) {
   const { data: allProfiles = [], isLoading: loadingProfiles } = useProfiles()
   const profiles = allProfiles.filter((p) => p.id !== user?.id)
   const { showLoader, hideLoader } = useActionLoader()
+  const { showToast } = useToast()
 
   function toggleUser(id: string) {
     setTargetUserIds((prev) =>
@@ -110,13 +112,14 @@ export default function ComunicadoForm({ comunicado, onSuccess }: Props) {
         }
       }
 
+      showToast(isEdit ? 'Comunicado atualizado' : 'Comunicado publicado')
       if (onSuccess) {
         onSuccess()
       } else {
         router.push('/comunicados')
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao salvar.')
+    } catch {
+      showToast('Erro ao salvar comunicado.', 'error')
     } finally {
       setLoading(false)
       hideLoader()
