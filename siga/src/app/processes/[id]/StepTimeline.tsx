@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, memo } from 'react'
+import { createPortal } from 'react-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
@@ -51,6 +52,7 @@ interface StepItemProps {
   step: Step
   isLast: boolean
   onSaved: () => void
+  onDeleted: (stepId: string) => void
   processId: string
   canShare: boolean
   allTypes: string[]
@@ -59,12 +61,15 @@ interface StepItemProps {
   onTypeAdded: (label: string) => void
 }
 
-const StepItem = memo(function StepItem({ step, isLast, onSaved, processId, canShare, allTypes, atLimit, userId, onTypeAdded }: StepItemProps) {
+const StepItem = memo(function StepItem({ step, isLast, onSaved, onDeleted, processId, canShare, allTypes, atLimit, userId, onTypeAdded }: StepItemProps) {
   const { showLoader, hideLoader } = useActionLoader()
   const { showToast } = useToast()
 
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const [markState, setMarkState] = useState<StepMarkState>(step.mark_state ?? 'neutral')
   const [addingType, setAddingType] = useState(false)
   const [newType, setNewType] = useState('')
@@ -80,7 +85,14 @@ const StepItem = memo(function StepItem({ step, isLast, onSaved, processId, canS
     datetime: toLocalDatetimeValue(step.created_at),
   })
 
+  useEffect(() => { setMounted(true) }, [])
   useEffect(() => { if (addingType) newTypeRef.current?.focus() }, [addingType])
+  useEffect(() => {
+    if (!confirming) return
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape' && !deleting) setConfirming(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [confirming, deleting])
 
   async function handleMarkClick() {
     const next = MARK_CYCLE[(MARK_CYCLE.indexOf(markState) + 1) % MARK_CYCLE.length]
@@ -145,6 +157,25 @@ const StepItem = memo(function StepItem({ step, isLast, onSaved, processId, canS
       showToast('Erro ao salvar etapa.', 'error')
     } finally {
       setSaving(false)
+      hideLoader()
+    }
+  }
+
+  async function handleDelete() {
+    if (deleting) return
+    setDeleting(true)
+    showLoader()
+    try {
+      const { error: err } = await supabase.from('steps').delete().eq('id', step.id)
+      if (err) throw err
+      showToast('Etapa excluída')
+      setConfirming(false)
+      onDeleted(step.id)
+    } catch {
+      showToast('Erro ao excluir etapa.', 'error')
+      setConfirming(false)
+    } finally {
+      setDeleting(false)
       hideLoader()
     }
   }
@@ -293,6 +324,20 @@ const StepItem = memo(function StepItem({ step, isLast, onSaved, processId, canS
             >
               editar
             </button>
+            {canShare && (
+              <button
+                type="button"
+                onClick={() => setConfirming(true)}
+                style={{
+                  fontSize: 11, color: 'var(--danger)', background: 'none',
+                  border: 'none', cursor: 'pointer', padding: '2px 6px',
+                  opacity: 0.7,
+                }}
+                title="Excluir etapa"
+              >
+                excluir
+              </button>
+            )}
           </div>
         </div>
         {step.description && <div className="tl-d">{step.description}</div>}
@@ -307,6 +352,54 @@ const StepItem = memo(function StepItem({ step, isLast, onSaved, processId, canS
           )}
         </div>
       </div>
+
+      {mounted && confirming && createPortal(
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 200,
+            background: 'rgba(0,0,0,0.45)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 24,
+            animation: 'modal-bg-in 0.18s ease both',
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget && !deleting) setConfirming(false) }}
+        >
+          <div style={{
+            background: 'var(--panel)',
+            border: '1px solid var(--line)',
+            borderRadius: 8,
+            width: '100%',
+            maxWidth: 400,
+            boxShadow: '0 24px 48px rgba(0,0,0,0.18)',
+            animation: 'modal-panel-in 0.22s cubic-bezier(.34,1.56,.64,1) both',
+          }}>
+            <div style={{ padding: '24px 24px 8px' }}>
+              <p style={{ fontWeight: 600, fontSize: 15, marginBottom: 8 }}>Excluir etapa</p>
+              <p style={{ fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.6 }}>
+                A etapa <strong>"{step.title}"</strong> será removida permanentemente. Esta ação não pode ser desfeita.
+              </p>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '16px 24px 24px' }}>
+              <button
+                className="btn ghost"
+                onClick={() => setConfirming(false)}
+                disabled={deleting}
+              >
+                Cancelar
+              </button>
+              <button
+                className="btn danger-btn"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? 'Excluindo…' : 'Sim, excluir'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 })
@@ -331,6 +424,14 @@ export default function StepTimeline({ processId, initialSteps, stepIds, stepsFi
   const handleSaved = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: queryKeys.steps(processId) })
   }, [queryClient, processId])
+
+  const handleDeleted = useCallback((stepId: string) => {
+    queryClient.setQueryData<Step[]>(queryKeys.steps(processId), (old) =>
+      (old ?? []).filter((s) => s.id !== stepId)
+    )
+    queryClient.invalidateQueries({ queryKey: queryKeys.steps(processId) })
+  }, [queryClient, processId])
+
   const handleTypeAdded = useCallback((label: string) => addType(label), [addType])
 
   return (
@@ -357,6 +458,7 @@ export default function StepTimeline({ processId, initialSteps, stepIds, stepsFi
                 step={step}
                 isLast={i === steps.length - 1}
                 onSaved={handleSaved}
+                onDeleted={handleDeleted}
                 processId={processId}
                 canShare={canShare}
                 allTypes={allTypes}
