@@ -29,4 +29,8 @@ export const queryKeys = {
   configuracoes: (userId: string) => ['configuracoes', userId] as const,
   processTypes: (userId: string) => ['process-types', userId] as const,
   stepTypes: (userId: string) => ['step-types', userId] as const,
+
+  // --- Kanban ---
+  kanbanCards: (userId: string) => ['kanban-cards', userId] as const,
+  kanbanShares: (cardId: string) => ['kanban-shares', cardId] as const,
 }

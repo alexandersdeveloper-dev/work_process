@@ -58,8 +58,8 @@ export interface Folga {
   profile?: Profile
 }
 
-export type NotificationType = 'process_shared' | 'new_comunicado' | 'folga_registered' | 'deadline_soon'
-export type NotificationRelatedType = 'process' | 'comunicado' | 'folga'
+export type NotificationType = 'process_shared' | 'new_comunicado' | 'folga_registered' | 'deadline_soon' | 'kanban_shared'
+export type NotificationRelatedType = 'process' | 'comunicado' | 'folga' | 'kanban_card'
 
 export interface AppNotification {
   id: string
@@ -242,7 +242,55 @@ export const PRIORITY_KIND: Record<Priority, string> = {
   urgent: 'danger',
 }
 
-// Mantidos por compatibilidade com imports existentes
+// ── Kanban ────────────────────────────────────────────────────────────
+
+export type KanbanColumnKey = 'todo' | 'doing' | 'review' | 'done'
+export type KanbanColor = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple'
+
+export const KANBAN_COLUMNS: { key: KanbanColumnKey; label: string }[] = [
+  { key: 'todo',   label: 'A Fazer'      },
+  { key: 'doing',  label: 'Em Andamento' },
+  { key: 'review', label: 'Em Revisão'   },
+  { key: 'done',   label: 'Concluído'    },
+]
+
+export const KANBAN_COLOR_HEX: Record<KanbanColor, string> = {
+  red:    '#ef4444',
+  orange: '#f97316',
+  yellow: '#eab308',
+  green:  '#22c55e',
+  blue:   '#3b82f6',
+  purple: '#a855f7',
+}
+
+export interface KanbanCard {
+  id:          string
+  title:       string
+  description: string | null
+  column_key:  KanbanColumnKey
+  color:       KanbanColor | null
+  priority:    Priority | null
+  due_date:    string | null
+  owner_id:    string
+  created_at:  string
+  updated_at:  string
+}
+
+export interface KanbanCardWithShare extends KanbanCard {
+  is_owner:  boolean
+  shared_by: { id: string; full_name: string } | null
+}
+
+export interface KanbanShare {
+  id:                   string
+  card_id:              string
+  shared_with_user_id:  string
+  shared_by_user_id:    string
+  created_at:           string
+  profile?:             Profile
+}
+
+// ── Mantidos por compatibilidade com imports existentes
 /** @deprecated use getProcessTypeLabel() */
 export const PROCESS_TYPE_LABELS = LEGACY_PROCESS_TYPES
 /** @deprecated use getStepTypeLabel() */

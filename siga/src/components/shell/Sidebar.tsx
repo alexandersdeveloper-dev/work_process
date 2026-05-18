@@ -75,6 +75,7 @@ export default function Sidebar() {
             {item('/comunicados', 'Comunicado Institucional', <MegaphoneIcon />)}
             {item('/calendario', 'Calendário', <CalendarIcon />)}
             {item('/ensino', 'Ensino', <GraduationIcon />)}
+            {item('/kanban', 'Kanban', <KanbanIcon />)}
             {item('/configuracoes', 'Configurações', <SettingsIcon />)}
           </div>
 
@@ -222,6 +223,16 @@ function GraduationIcon() {
     <svg className="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       <path d="M22 10v6M2 10l10-5 10 5-10 5-10-5z" />
       <path d="M6 12v5c0 1.657 2.686 3 6 3s6-1.343 6-3v-5" />
+    </svg>
+  )
+}
+
+function KanbanIcon() {
+  return (
+    <svg className="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      <rect x="1" y="2" width="4" height="12" rx="1" />
+      <rect x="6" y="2" width="4" height="8"  rx="1" />
+      <rect x="11" y="2" width="4" height="10" rx="1" />
     </svg>
   )
 }

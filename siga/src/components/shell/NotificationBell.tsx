@@ -22,6 +22,7 @@ function notifHref(n: AppNotification): string | null {
   if (n.related_type === 'process' && n.related_id) return `/processes/${n.related_id}`
   if (n.related_type === 'comunicado' && n.related_id) return `/comunicados`
   if (n.related_type === 'folga') return `/calendario`
+  if (n.related_type === 'kanban_card') return `/kanban`
   return null
 }
 
@@ -78,6 +79,7 @@ const TYPE_ICON_MAP: Record<string, () => React.ReactElement> = {
   new_comunicado:   IconMegaphone,
   folga_registered: IconCalendar,
   deadline_soon:    IconClock,
+  kanban_shared:    IconShare,
 }
 
 export default function NotificationBell() {
