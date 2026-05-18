@@ -163,6 +163,7 @@ export default function ProcessForm({ process }: Props) {
     } catch {
       showToast('Erro ao salvar processo.', 'error')
       setLoading(false)
+    } finally {
       hideLoader()
     }
   }
