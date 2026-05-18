@@ -5,6 +5,7 @@ import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import { useShell } from './ShellProvider'
 import { PageTransition } from './PageTransition'
+import { NavigationProgress } from './NavigationProgress'
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -15,14 +16,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className={`app${collapsed ? ' sidebar-collapsed' : ''}`}>
-      <Sidebar />
-      <div className="main">
-        <Topbar />
-        <PageTransition>
-          {children}
-        </PageTransition>
+    <>
+      <NavigationProgress />
+      <div className={`app${collapsed ? ' sidebar-collapsed' : ''}`}>
+        <Sidebar />
+        <div className="main">
+          <Topbar />
+          <PageTransition>
+            {children}
+          </PageTransition>
+        </div>
       </div>
-    </div>
+    </>
   )
 }
