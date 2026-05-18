@@ -48,7 +48,9 @@ export default function DateTimePicker({ value, onChange, maxNow = false, placeh
     const d = parseISO(value) ?? new Date()
     setViewYear(d.getFullYear())
     setViewMonth(d.getMonth())
-    setSelected(parseISO(value))
+    // Pré-seleciona a data atual se não houver valor — evita que o usuário
+    // precise clicar num dia só para habilitar o Confirmar
+    setSelected(parseISO(value) ?? new Date())
     setHour(pad(d.getHours()))
     setMinute(pad(d.getMinutes()))
     setOpen(true)
