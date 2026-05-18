@@ -107,6 +107,7 @@ export interface ProcessDeadline {
   status: string
   priority: string
   deadline: string
+  owner_id: string
 }
 
 export type FeriadoType = 'feriado' | 'ponto_facultativo'

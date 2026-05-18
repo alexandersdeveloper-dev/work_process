@@ -17,7 +17,7 @@ async function fetchDeadlines(userId: string, role: string): Promise<ProcessDead
 
   let query = supabase
     .from('processes')
-    .select('id, title, type, status, priority, deadline')
+    .select('id, title, type, status, priority, deadline, owner_id')
     .not('deadline', 'is', null)
     .not('status', 'in', '("done","cancelled","completed")')
 

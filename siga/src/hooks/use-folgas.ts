@@ -9,7 +9,6 @@ async function fetchFolgas(userId: string, role: string): Promise<Folga[]> {
     .from('folgas')
     .select('id, user_id, date, end_date, type, description, registered_by, created_at, profile:profiles!folgas_user_id_fkey(id, full_name, cargo)')
     .order('date', { ascending: true })
-  if (role === 'servidor') query = query.eq('user_id', userId)
   const { data, error } = await query
   if (error) throw error
   return (data as unknown as Folga[]) ?? []

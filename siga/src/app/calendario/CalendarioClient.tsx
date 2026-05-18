@@ -318,7 +318,10 @@ function AgendaView({ viewYear, viewMonth, daysInMonth, todayKey, folgasByDate, 
         const dayFolgas = rawFolgas.length > 1 && profileId
           ? [...rawFolgas].sort((a, b) => (a.user_id === profileId ? -1 : b.user_id === profileId ? 1 : 0))
           : rawFolgas
-        const dayDeadlines = deadlinesByDate.get(key) ?? []
+        const rawDeadlines = deadlinesByDate.get(key) ?? []
+        const dayDeadlines = rawDeadlines.length > 1 && profileId
+          ? [...rawDeadlines].sort((a, b) => (a.owner_id === profileId ? -1 : b.owner_id === profileId ? 1 : 0))
+          : rawDeadlines
         const dayFeriados = feriadosByDate.get(key) ?? []
         const hasFolga = dayFolgas.length > 0
         const hasDeadline = dayDeadlines.length > 0
@@ -768,7 +771,10 @@ export default function CalendarioClient() {
                     const dayFolgas = rawFolgas.length > 1 && profile?.id
                       ? [...rawFolgas].sort((a, b) => (a.user_id === profile.id ? -1 : b.user_id === profile.id ? 1 : 0))
                       : rawFolgas
-                    const dayDeadlines = deadlinesByDate.get(key) ?? []
+                    const rawDeadlines = deadlinesByDate.get(key) ?? []
+                    const dayDeadlines = rawDeadlines.length > 1 && profile?.id
+                      ? [...rawDeadlines].sort((a, b) => (a.owner_id === profile.id ? -1 : b.owner_id === profile.id ? 1 : 0))
+                      : rawDeadlines
                     const dayFeriados = feriadosByDate.get(key) ?? []
                     const hasFolga = dayFolgas.length > 0
                     const hasDeadline = dayDeadlines.length > 0
@@ -931,7 +937,12 @@ export default function CalendarioClient() {
               ? [...raw].sort((a, b) => (a.user_id === profile.id ? -1 : b.user_id === profile.id ? 1 : 0))
               : raw
           })()}
-          deadlines={deadlinesByDate.get(popupDay) ?? []}
+          deadlines={(() => {
+            const raw = deadlinesByDate.get(popupDay) ?? []
+            return raw.length > 1 && profile?.id
+              ? [...raw].sort((a, b) => (a.owner_id === profile.id ? -1 : b.owner_id === profile.id ? 1 : 0))
+              : raw
+          })()}
           feriados={feriadosByDate.get(popupDay) ?? []}
           todayKey={todayKey}
           canManage={canAdd}
