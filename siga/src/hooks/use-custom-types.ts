@@ -19,20 +19,24 @@ async function fetchTypes(table: string, userId: string): Promise<CustomTypeRow[
   return (data ?? []) as CustomTypeRow[]
 }
 
-export function useProcessTypes(userId: string) {
+export function useProcessTypes(userId: string, initialData?: CustomTypeRow[]) {
   return useQuery({
     queryKey: queryKeys.processTypes(userId),
     queryFn: () => fetchTypes('user_process_types', userId),
+    initialData,
+    initialDataUpdatedAt: initialData ? Date.now() : undefined,
     staleTime: 5 * 60 * 1000,
     enabled: !!userId,
     placeholderData: keepPreviousData,
   })
 }
 
-export function useStepTypes(userId: string) {
+export function useStepTypes(userId: string, initialData?: CustomTypeRow[]) {
   return useQuery({
     queryKey: queryKeys.stepTypes(userId),
     queryFn: () => fetchTypes('user_step_types', userId),
+    initialData,
+    initialDataUpdatedAt: initialData ? Date.now() : undefined,
     staleTime: 5 * 60 * 1000,
     enabled: !!userId,
     placeholderData: keepPreviousData,

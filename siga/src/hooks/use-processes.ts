@@ -35,21 +35,25 @@ async function fetchSharedProcesses(userId: string): Promise<Process[]> {
   return (data ?? []) as Process[]
 }
 
-export function useProcesses(userId: string, enabled = true) {
+export function useProcesses(userId: string, enabled = true, initialData?: Process[]) {
   return useQuery({
     queryKey: queryKeys.processes(userId, 'own'),
     queryFn: () => fetchOwnProcesses(userId),
-    staleTime: 2 * 60 * 1000,
+    initialData,
+    initialDataUpdatedAt: initialData ? Date.now() : undefined,
+    staleTime: 5 * 60 * 1000,
     enabled: !!userId && enabled,
     placeholderData: keepPreviousData,
   })
 }
 
-export function useSharedProcesses(userId: string, enabled = true) {
+export function useSharedProcesses(userId: string, enabled = true, initialData?: Process[]) {
   return useQuery({
     queryKey: queryKeys.sharedProcesses(userId),
     queryFn: () => fetchSharedProcesses(userId),
-    staleTime: 2 * 60 * 1000,
+    initialData,
+    initialDataUpdatedAt: initialData ? Date.now() : undefined,
+    staleTime: 5 * 60 * 1000,
     enabled: !!userId && enabled,
     placeholderData: keepPreviousData,
   })
@@ -65,11 +69,13 @@ async function fetchAllProcesses(): Promise<Process[]> {
   return (data ?? []) as Process[]
 }
 
-export function useAllProcesses(enabled = true) {
+export function useAllProcesses(enabled = true, initialData?: Process[]) {
   return useQuery({
     queryKey: queryKeys.allProcesses(),
     queryFn: fetchAllProcesses,
-    staleTime: 2 * 60 * 1000,
+    initialData,
+    initialDataUpdatedAt: initialData ? Date.now() : undefined,
+    staleTime: 5 * 60 * 1000,
     enabled,
     placeholderData: keepPreviousData,
   })

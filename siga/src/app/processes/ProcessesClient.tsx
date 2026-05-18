@@ -223,19 +223,21 @@ export default function ProcessesClient({
   mode = 'own',
   title = 'Meus Processos',
   subtitle = 'Seus processos de trabalho',
+  initialProcesses,
 }: {
   mode?: 'own' | 'shared' | 'unit'
   title?: string
   subtitle?: string
+  initialProcesses?: Process[]
 }) {
   const { user } = useUser()
   const userId = user?.id ?? ''
 
   const isOwn = mode === 'own'
   const isUnit = mode === 'unit'
-  const ownQuery = useProcesses(userId, isOwn)
-  const sharedQuery = useSharedProcesses(userId, mode === 'shared')
-  const unitQuery = useAllProcesses(isUnit)
+  const ownQuery = useProcesses(userId, isOwn, isOwn ? initialProcesses : undefined)
+  const sharedQuery = useSharedProcesses(userId, mode === 'shared', mode === 'shared' ? initialProcesses : undefined)
+  const unitQuery = useAllProcesses(isUnit, isUnit ? initialProcesses : undefined)
 
   const { data: processes = [], isLoading } = isUnit ? unitQuery : isOwn ? ownQuery : sharedQuery
 

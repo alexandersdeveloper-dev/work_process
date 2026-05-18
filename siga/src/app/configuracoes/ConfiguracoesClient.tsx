@@ -34,7 +34,13 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-export default function ConfiguracoesClient() {
+export default function ConfiguracoesClient({
+  initialProcessTypes,
+  initialStepTypes,
+}: {
+  initialProcessTypes?: CustomTypeRow[]
+  initialStepTypes?: CustomTypeRow[]
+}) {
   const { user } = useUser()
   const userId = user?.id ?? ''
   const queryClient = useQueryClient()
@@ -51,8 +57,8 @@ export default function ConfiguracoesClient() {
   const [validationError, setValidationError] = useState('')
   const newLabelRef = useRef<HTMLInputElement>(null)
 
-  const { data: processTypes = [], isLoading: processTypesLoading } = useProcessTypes(userId)
-  const { data: stepTypes = [], isLoading: stepTypesLoading } = useStepTypes(userId)
+  const { data: processTypes = [], isLoading: processTypesLoading } = useProcessTypes(userId, initialProcessTypes)
+  const { data: stepTypes = [], isLoading: stepTypesLoading } = useStepTypes(userId, initialStepTypes)
 
   const currentTypes = tab === 'processos' ? processTypes : stepTypes
   const isLoading = processTypesLoading || stepTypesLoading

@@ -186,16 +186,22 @@ function NovoComunicadoModal({ onClose, onSuccess }: { onClose: () => void; onSu
   )
 }
 
-export default function ComunicadosClient() {
+export default function ComunicadosClient({
+  initialComunicados,
+  initialRole,
+}: {
+  initialComunicados?: Comunicado[]
+  initialRole?: string
+}) {
   const { user, profile } = useUser()
   const userId = user?.id ?? ''
-  const role = profile?.role ?? ''
+  const role = initialRole ?? profile?.role ?? ''
   const queryClient = useQueryClient()
   const [showModal, setShowModal] = useState(false)
   const [, startTransition] = useTransition()
-  const canManage = canPublish(role || null)
+  const canManage = canPublish((role as import('@/types').UserRole) || null)
 
-  const { data: list = [], isLoading } = useComunicados(userId, role)
+  const { data: list = [], isLoading } = useComunicados(userId, role, initialComunicados)
 
   function handleDelete(id: string) {
     queryClient.setQueryData<Comunicado[]>(

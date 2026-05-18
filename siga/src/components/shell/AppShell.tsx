@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import { useShell } from './ShellProvider'
+import { PageTransition } from './PageTransition'
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -18,9 +19,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="main">
         <Topbar />
-        <div className="content page-enter" key={pathname}>
+        <PageTransition>
           {children}
-        </div>
+        </PageTransition>
       </div>
     </div>
   )
