@@ -1515,6 +1515,7 @@ table.t {
 .kanban-card.shared-card { cursor: default; }
 
 .kanban-card:hover .kc-actions { opacity: 1; }
+.kanban-card:hover .kc-move-row { opacity: 1; pointer-events: auto; }
 
 .kc-color-strip { height: 3px; width: 100%; }
 .kc-color-red    { background: #ef4444; }
@@ -1525,6 +1526,7 @@ table.t {
 .kc-color-purple { background: #a855f7; }
 
 .kc-body { padding: 10px 12px 8px; }
+.kanban-card:hover .kc-body { padding-right: 90px; transition: padding-right 0.15s; }
 
 .kc-title {
   font-size: 13px;
@@ -1573,39 +1575,83 @@ table.t {
 }
 
 .kc-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   opacity: 0;
-  transition: opacity 0.12s;
-  padding: 4px 8px 6px;
+  transition: opacity 0.15s;
+  z-index: 2;
 }
 
 .kc-action-btn {
-  background: none;
-  border: none;
-  padding: 3px 6px;
-  border-radius: 4px;
-  font-size: 11px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  flex-shrink: 0;
+}
+
+.kc-action-btn:hover {
+  background: var(--panel-alt);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.kc-action-btn.danger:hover {
+  background: color-mix(in srgb, #ef4444 10%, transparent);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.kc-move-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 5px 10px 7px;
+  border-top: 1px solid var(--line);
+  background: var(--panel-alt);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.kc-move-label {
+  font-size: 10px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  margin-right: 2px;
+  flex-shrink: 0;
+}
+
+.kc-move-btn {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  padding: 2px 9px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel);
   color: var(--ink-2);
   cursor: pointer;
-  transition: background 0.1s, color 0.1s;
+  transition: all 0.12s;
   white-space: nowrap;
 }
 
-.kc-action-btn:hover { background: var(--panel-alt); color: var(--ink); }
-.kc-action-btn.danger:hover { background: color-mix(in srgb, #ef4444 12%, transparent); color: #ef4444; }
-
-.kc-move-select {
-  font-size: 11px;
-  background: var(--panel-alt);
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  color: var(--ink-2);
-  padding: 2px 4px;
-  cursor: pointer;
-  outline: none;
-  max-width: 100px;
+.kc-move-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--panel);
 }
 
 .kanban-add-btn {

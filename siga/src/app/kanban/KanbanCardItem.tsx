@@ -71,24 +71,37 @@ function KanbanCardItem({ card, today, isDragging, onEdit, onShare, onDelete, on
         </div>
 
         {card.is_owner && (
-          <div className="kc-actions">
-            <button className="kc-action-btn" onClick={() => onEdit(card)}>Editar</button>
-            <button className="kc-action-btn" onClick={() => onShare(card)}>Compartilhar</button>
+          <>
+            <div className="kc-actions">
+              <button className="kc-action-btn" onClick={() => onEdit(card)} title="Editar">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z"/>
+                </svg>
+              </button>
+              <button className="kc-action-btn" onClick={() => onShare(card)} title="Compartilhar">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                  <circle cx="12" cy="3" r="1.5"/><circle cx="4" cy="8" r="1.5"/><circle cx="12" cy="13" r="1.5"/>
+                  <path d="M5.5 7.2l5-2.9M5.5 8.8l5 2.9"/>
+                </svg>
+              </button>
+              <button className="kc-action-btn danger" onClick={() => setConfirming(true)} title="Excluir">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 4h12M6 4V2.5h4V4M5.5 4l.5 9.5h4l.5-9.5"/>
+                </svg>
+              </button>
+            </div>
+
             {otherColumns.length > 0 && (
-              <select
-                className="kc-move-select"
-                value=""
-                onChange={(e) => { if (e.target.value) onMove(card.id, e.target.value as KanbanColumnKey) }}
-                title="Mover para…"
-              >
-                <option value="" disabled>Mover…</option>
+              <div className="kc-move-row">
+                <span className="kc-move-label">Mover:</span>
                 {otherColumns.map((col) => (
-                  <option key={col.key} value={col.key}>{col.label}</option>
+                  <button key={col.key} className="kc-move-btn" onClick={() => onMove(card.id, col.key)}>
+                    {col.label}
+                  </button>
                 ))}
-              </select>
+              </div>
             )}
-            <button className="kc-action-btn danger" onClick={() => setConfirming(true)}>Excluir</button>
-          </div>
+          </>
         )}
       </div>
 
