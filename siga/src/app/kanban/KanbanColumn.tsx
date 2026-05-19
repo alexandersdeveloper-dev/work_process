@@ -18,14 +18,13 @@ interface Props {
   onEdit: (card: KanbanCardWithShare) => void
   onShare: (card: KanbanCardWithShare) => void
   onDelete: (cardId: string) => void
-  onMove: (cardId: string, col: KanbanColumnKey) => void
   onAddCard: (col: KanbanColumnKey) => void
 }
 
 function KanbanColumn({
   columnKey, label, cards, today, draggingCardId, isDragOver,
   onDragOver, onDragLeave, onDrop, onCardDragStart,
-  onEdit, onShare, onDelete, onMove, onAddCard,
+  onEdit, onShare, onDelete, onAddCard,
 }: Props) {
   return (
     <div
@@ -53,7 +52,6 @@ function KanbanColumn({
             onEdit={onEdit}
             onShare={onShare}
             onDelete={onDelete}
-            onMove={onMove}
             onDragStart={onCardDragStart}
           />
         ))}
