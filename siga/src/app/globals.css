@@ -94,7 +94,8 @@ button, [role="button"] { user-select: none; -webkit-user-select: none; }
 .app {
   display: grid;
   grid-template-columns: 248px 1fr;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   transition: grid-template-columns 0.22s ease;
 }
 
@@ -293,10 +294,11 @@ button, [role="button"] { user-select: none; -webkit-user-select: none; }
 .sb-footer .who .r { color: var(--muted); font-size: 11px; }
 
 /* ------- Main ------- */
-.main { min-width: 0; display: flex; flex-direction: column; }
+.main { min-width: 0; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 
 .topbar {
   height: 72px;
+  flex-shrink: 0;
   border-bottom: 1px solid var(--line);
   background: var(--panel);
   display: flex;
@@ -376,7 +378,15 @@ button, [role="button"] { user-select: none; -webkit-user-select: none; }
   animation: shimmer 1.4s ease infinite;
 }
 
-.content { padding: 28px; width: 100%; }
+.content {
+  padding: 28px;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
 .page-enter { animation: page-in 0.18s ease both; }
 
 .page-head {
@@ -387,6 +397,7 @@ button, [role="button"] { user-select: none; -webkit-user-select: none; }
   margin-bottom: 28px;
   padding-bottom: 22px;
   border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
 }
 .page-head h1 {
   font-family: var(--font-display);
@@ -1435,9 +1446,9 @@ table.t {
   gap: 14px;
   overflow-x: auto;
   align-items: stretch;
-  min-height: calc(100vh - 200px);
+  flex: 1;
+  min-height: 0;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: 24px;
 }
 
 .kanban-col {
@@ -1445,7 +1456,7 @@ table.t {
   background: var(--panel-alt);
   border: 1px solid var(--line);
   border-radius: 8px;
-  height: calc(100vh - 200px);
+  height: 100%;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1818,5 +1829,5 @@ table.t {
 .kc-color-dot.none.selected { border-color: var(--ink-2); }
 
 @media (max-width: 600px) {
-  .kanban-col { flex: 0 0 240px; height: calc(100vh - 160px); }
+  .kanban-col { flex: 0 0 240px; }
 }
