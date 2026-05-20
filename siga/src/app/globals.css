@@ -1434,7 +1434,7 @@ table.t {
   display: flex;
   gap: 14px;
   overflow-x: auto;
-  align-items: flex-start;
+  align-items: stretch;
   min-height: calc(100vh - 200px);
   -webkit-overflow-scrolling: touch;
   padding-bottom: 24px;
@@ -1445,10 +1445,11 @@ table.t {
   background: var(--panel-alt);
   border: 1px solid var(--line);
   border-radius: 8px;
-  max-height: calc(100vh - 200px);
+  height: calc(100vh - 200px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  min-height: 0;
   touch-action: pan-y;
   transition: border-color 0.12s, background 0.12s;
 }
@@ -1494,6 +1495,7 @@ table.t {
   flex-direction: column;
   gap: 8px;
   flex: 1;
+  min-height: 0;
 }
 
 .kanban-col-empty {
@@ -1816,5 +1818,5 @@ table.t {
 .kc-color-dot.none.selected { border-color: var(--ink-2); }
 
 @media (max-width: 600px) {
-  .kanban-col { flex: 0 0 240px; }
+  .kanban-col { flex: 0 0 240px; height: calc(100vh - 160px); }
 }
