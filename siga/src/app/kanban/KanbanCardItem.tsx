@@ -5,8 +5,6 @@ import { createPortal } from 'react-dom'
 import { PRIORITY_LABELS, PRIORITY_KIND } from '@/types'
 import type { KanbanCardWithShare } from '@/types'
 
-const DESC_OVERFLOW_THRESHOLD = 180
-
 interface Props {
   card: KanbanCardWithShare
   today: string
@@ -23,10 +21,18 @@ function KanbanCardItem({ card, today, isDragging, onEdit, onShare, onDelete, on
   const [showDesc, setShowDesc] = useState(false)
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null)
   const [mounted, setMounted] = useState(false)
+  const [hasOverflow, setHasOverflow] = useState(false)
   const menuBtnRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const descRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { setMounted(true) }, [])
+
+  useEffect(() => {
+    const el = descRef.current
+    if (!el) return
+    setHasOverflow(el.scrollHeight > el.clientHeight)
+  }, [card.description])
 
   // Close menu on mousedown outside — checks both button and portal dropdown via refs
   useEffect(() => {
@@ -64,7 +70,6 @@ function KanbanCardItem({ card, today, isDragging, onEdit, onShare, onDelete, on
   }
 
   const isOverdue = !!card.due_date && card.column_key !== 'done' && card.due_date < today
-  const hasDescOverflow = !!card.description && card.description.length > DESC_OVERFLOW_THRESHOLD
 
   return (
     <>
@@ -80,8 +85,8 @@ function KanbanCardItem({ card, today, isDragging, onEdit, onShare, onDelete, on
 
           {card.description && (
             <>
-              <div className="kc-desc">{card.description}</div>
-              {hasDescOverflow && (
+              <div ref={descRef} className="kc-desc">{card.description}</div>
+              {hasOverflow && (
                 <button className="kc-ver-mais" onClick={() => setShowDesc(true)}>
                   ver mais
                 </button>
