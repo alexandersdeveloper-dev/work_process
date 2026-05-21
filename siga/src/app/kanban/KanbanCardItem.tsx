@@ -2,8 +2,9 @@
 
 import { memo, useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { PRIORITY_LABELS, PRIORITY_KIND } from '@/types'
-import type { KanbanCardWithShare } from '@/types'
+import { PRIORITY_LABELS, PRIORITY_KIND, KANBAN_COLUMNS } from '@/types'
+import type { KanbanCardWithShare, KanbanColumnKey } from '@/types'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 interface Props {
   card: KanbanCardWithShare
@@ -12,10 +13,11 @@ interface Props {
   onEdit: (card: KanbanCardWithShare) => void
   onShare: (card: KanbanCardWithShare) => void
   onDelete: (cardId: string) => void
+  onMove: (cardId: string, col: KanbanColumnKey) => void
   onDragStart: (card: KanbanCardWithShare) => void
 }
 
-function KanbanCardItem({ card, today, isDragging, onEdit, onShare, onDelete, onDragStart }: Props) {
+function KanbanCardItem({ card, today, isDragging, onEdit, onShare, onDelete, onMove, onDragStart }: Props) {
   const [confirming, setConfirming] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [showDesc, setShowDesc] = useState(false)
@@ -153,6 +155,20 @@ function KanbanCardItem({ card, today, isDragging, onEdit, onShare, onDelete, on
             </svg>
             Compartilhar
           </button>
+          <div className="kc-move-select-wrap">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <path d="M8 2v9M5 8l3 3 3-3M3 13h10" />
+            </svg>
+            <select
+              className="kc-move-select"
+              value={card.column_key}
+              onChange={(e) => { setMenuOpen(false); onMove(card.id, e.target.value as KanbanColumnKey) }}
+            >
+              {KANBAN_COLUMNS.map((col) => (
+                <option key={col.key} value={col.key}>{col.label}</option>
+              ))}
+            </select>
+          </div>
           <div className="kc-dropdown-sep" />
           <button className="kc-dropdown-item danger" onClick={() => { setMenuOpen(false); setConfirming(true) }}>
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -181,46 +197,14 @@ function KanbanCardItem({ card, today, isDragging, onEdit, onShare, onDelete, on
         document.body
       )}
 
-      {/* Confirmação de exclusão — Portal global */}
-      {mounted && confirming && createPortal(
-        <div
-          style={{
-            position: 'fixed', inset: 0, zIndex: 2000,
-            background: 'rgba(0,0,0,0.45)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 24,
-            animation: 'modal-bg-in 0.18s ease both',
-          }}
-          onClick={(e) => { if (e.target === e.currentTarget) setConfirming(false) }}
-        >
-          <div style={{
-            background: 'var(--panel)',
-            border: '1px solid var(--line)',
-            borderRadius: 8,
-            width: '100%',
-            maxWidth: 400,
-            padding: 24,
-            boxShadow: '0 24px 48px rgba(0,0,0,0.18)',
-            animation: 'modal-panel-in 0.22s cubic-bezier(.34,1.56,.64,1) both',
-          }}>
-            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Excluir card?</h3>
-            <p style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 20 }}>
-              "{card.title}" será excluído permanentemente. Esta ação não pode ser desfeita.
-            </p>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button className="btn ghost" onClick={() => setConfirming(false)}>Cancelar</button>
-              <button
-                className="btn danger"
-                onClick={() => { setConfirming(false); onDelete(card.id) }}
-              >
-                Excluir
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <ConfirmModal
+        open={confirming}
+        title="Excluir card?"
+        description={`"${card.title}" será excluído permanentemente. Esta ação não pode ser desfeita.`}
+        confirmLabel="Excluir"
+        onConfirm={() => { setConfirming(false); onDelete(card.id) }}
+        onCancel={() => setConfirming(false)}
+      />
     </>
   )
 }

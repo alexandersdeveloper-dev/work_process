@@ -34,11 +34,13 @@ async function fetchDeadlines(userId: string, role: string): Promise<ProcessDead
   return (data as ProcessDeadline[]) ?? []
 }
 
-export function useDeadlines(userId: string, role: string) {
+export function useDeadlines(userId: string, role: string, initialData?: ProcessDeadline[]) {
   return useQuery({
     queryKey: queryKeys.deadlines(userId, role),
     queryFn: () => fetchDeadlines(userId, role),
-    staleTime: 2 * 60 * 1000,
+    initialData,
+    initialDataUpdatedAt: initialData ? Date.now() : undefined,
+    staleTime: 5 * 60 * 1000,
     enabled: !!userId && !!role,
     placeholderData: keepPreviousData,
   })

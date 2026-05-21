@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase'
 import { useUser } from '@/lib/user-context'
-import { useRouter } from 'next/navigation'
+import { useInvalidateFolgas } from '@/hooks/use-folgas'
 import type { Profile } from '@/types'
 
 interface Props {
@@ -20,15 +20,15 @@ export default function AddFolgaModal({ initialDate = '', onClose }: Props) {
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const { user } = useUser()
-  const router = useRouter()
+  const { user, profile } = useUser()
+  const invalidateFolgas = useInvalidateFolgas()
   const supabase = createClient()
 
   useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase.from('profiles').select('*').eq('role', 'servidor')
+      const { data } = await supabase.from('profiles').select('id, full_name, role, cargo').eq('role', 'servidor')
       const profiles = (data as Profile[] | null) ?? []
       setUsers(profiles)
       if (profiles.length > 0) setUserId(profiles[0].id)
@@ -72,7 +72,7 @@ export default function AddFolgaModal({ initialDate = '', onClose }: Props) {
       related_type: 'folga',
     })
 
-    router.refresh()
+    invalidateFolgas(user!.id, profile?.role ?? '')
     close()
   }
 

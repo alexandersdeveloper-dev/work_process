@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase'
+import { useFocusTrap } from '@/hooks/use-focus-trap'
 import { useUser } from '@/lib/user-context'
-import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useProcessShares } from '@/hooks/use-process-shares'
@@ -21,15 +21,15 @@ interface Props {
 
 export default function ShareModal({ processId, processOwnerId, existingShares }: Props) {
   const [open, setOpen] = useState(false)
+  const modalRef = useFocusTrap(open)
   const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(false)
   const { user } = useUser()
-  const router = useRouter()
   const supabase = createClient()
   const queryClient = useQueryClient()
 
   const { data: users = [], isLoading: loadingUsers } = useProfiles()
-  const { data: shares = [] } = useProcessShares(processId)
+  const { data: shares = [] } = useProcessShares(processId, existingShares)
   const { showLoader, hideLoader } = useActionLoader()
   const { showToast } = useToast()
 
@@ -83,7 +83,6 @@ export default function ShareModal({ processId, processOwnerId, existingShares }
       }
 
       await queryClient.invalidateQueries({ queryKey: queryKeys.processShares(processId) })
-      router.refresh()
       showToast(alreadyShared ? 'Acesso removido' : 'Processo compartilhado')
     } catch {
       showToast('Erro ao atualizar compartilhamento.', 'error')
@@ -127,6 +126,7 @@ export default function ShareModal({ processId, processOwnerId, existingShares }
               boxShadow: '0 24px 48px rgba(0,0,0,0.18)',
               animation: 'modal-panel-in 0.22s cubic-bezier(.34,1.56,.64,1) both',
             }}
+            ref={modalRef}
           >
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -141,13 +141,7 @@ export default function ShareModal({ processId, processOwnerId, existingShares }
               {loadingUsers ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {[1, 2, 3].map((i) => (
-                    <div key={i} style={{
-                      height: 56, borderRadius: 6,
-                      background: 'var(--panel-alt)',
-                      border: '1px solid var(--line)',
-                      opacity: 0.5,
-                      animation: 'pulse 1.2s ease-in-out infinite',
-                    }} />
+                    <div key={i} className="skel" style={{ height: 56, borderRadius: 6 }} />
                   ))}
                 </div>
               ) : eligibleUsers.length === 0 ? (

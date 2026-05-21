@@ -18,13 +18,14 @@ interface Props {
   onEdit: (card: KanbanCardWithShare) => void
   onShare: (card: KanbanCardWithShare) => void
   onDelete: (cardId: string) => void
+  onMove: (cardId: string, col: KanbanColumnKey) => void
   onAddCard: (col: KanbanColumnKey) => void
 }
 
 function KanbanColumn({
   columnKey, label, cards, today, draggingCardId, isDragOver,
   onDragOver, onDragLeave, onDrop, onCardDragStart,
-  onEdit, onShare, onDelete, onAddCard,
+  onEdit, onShare, onDelete, onMove, onAddCard,
 }: Props) {
   return (
     <div
@@ -40,7 +41,9 @@ function KanbanColumn({
 
       <div className="kanban-col-body">
         {cards.length === 0 && (
-          <div className="kanban-col-empty">Nenhum card</div>
+          <div className="kanban-col-empty">
+            {columnKey === 'todo' ? 'Clique em + para adicionar o primeiro card' : 'Nenhum card'}
+          </div>
         )}
 
         {cards.map((card) => (
@@ -52,6 +55,7 @@ function KanbanColumn({
             onEdit={onEdit}
             onShare={onShare}
             onDelete={onDelete}
+            onMove={onMove}
             onDragStart={onCardDragStart}
           />
         ))}

@@ -6,6 +6,8 @@ import { useUser } from '@/lib/user-context'
 import { useShell } from '@/components/shell/ShellProvider'
 import { canManageFolgas } from '@/lib/auth-guard'
 import { createClient } from '@/lib/supabase'
+import { useActionLoader } from '@/contexts/ActionLoaderContext'
+import { useToast } from '@/contexts/ToastContext'
 import AusenciaDrawer from './AusenciaDrawer'
 import EditFolgaModal from './EditFolgaModal'
 import CalendarioSkeleton from './CalendarioSkeleton'
@@ -32,16 +34,6 @@ function fmtLong(iso: string) {
 function fmtShort(iso: string) {
   const [y, m, d] = iso.split('-').map(Number)
   return new Date(y, m - 1, d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
-}
-
-function folgasForDay(folgas: Folga[], key: string, currentUserId?: string): Folga[] {
-  return folgas
-    .filter((f) => f.end_date ? f.date <= key && key <= f.end_date : f.date === key)
-    .sort((a, b) => {
-      if (a.user_id === currentUserId) return -1
-      if (b.user_id === currentUserId) return 1
-      return 0
-    })
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -417,16 +409,23 @@ function AgendaView({ viewYear, viewMonth, daysInMonth, todayKey, folgasByDate, 
 }
 
 /* ---------- Componente principal ---------- */
-export default function CalendarioClient() {
+interface CalendarioClientProps {
+  initialFolgas?: Folga[]
+  initialDeadlines?: ProcessDeadline[]
+}
+
+export default function CalendarioClient({ initialFolgas, initialDeadlines }: CalendarioClientProps) {
   const { profile } = useUser()
   const userId = profile?.id ?? ''
   const role = profile?.role ?? ''
   const canAdd = canManageFolgas(profile?.role)
   const { collapsed, setCollapsed } = useShell()
   const prevCollapsed = useRef(collapsed)
+  const { showLoader, hideLoader } = useActionLoader()
+  const { showToast } = useToast()
 
-  const { data: folgas = [], isLoading: folgasLoading } = useFolgas(userId, role)
-  const { data: deadlines = [], isLoading: deadlinesLoading } = useDeadlines(userId, role)
+  const { data: folgas = [], isLoading: folgasLoading } = useFolgas(userId, role, initialFolgas)
+  const { data: deadlines = [], isLoading: deadlinesLoading } = useDeadlines(userId, role, initialDeadlines)
   const { data: feriados = [] } = useFeriados()
   const invalidateFolgas = useInvalidateFolgas()
 
@@ -486,15 +485,6 @@ export default function CalendarioClient() {
         .filter((f) => f.date <= key && key <= (f.end_date ?? f.date))
         .sort((a, b) => (a.profile?.full_name ?? '').localeCompare(b.profile?.full_name ?? ''))
       if (dayFolgas.length > 0) dayEntries.push({ date: key, items: dayFolgas })
-    }
-
-    // Contadores únicos de pessoas (não de dias)
-    const uniqueFolga = new Set(monthFolgas.filter((f) => f.type === 'folga').map((f) => f.user_id)).size
-    const uniqueFerias = new Set(monthFolgas.filter((f) => f.type === 'ferias').map((f) => f.user_id)).size
-
-    function fmtDateRow(iso: string) {
-      const [y, m, dd] = iso.split('-').map(Number)
-      return new Date(y, m - 1, dd).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })
     }
 
     // Flatten to one row per (day × person), with rowspan on date cell
@@ -695,9 +685,28 @@ export default function CalendarioClient() {
   const [editingFolga, setEditingFolga] = useState<Folga | null>(null)
 
   async function handleDeleteFolga(f: Folga) {
-    const supabase = createClient()
-    await supabase.from('folgas').delete().eq('id', f.id)
-    invalidateFolgas(userId, role)
+    showLoader()
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.from('folgas').delete().eq('id', f.id)
+      if (error) throw error
+      invalidateFolgas(userId, role)
+      showToast('Registro excluído.')
+
+      // Fecha o popup se o dia ficou sem nenhum conteúdo
+      if (popupDay === f.date) {
+        const remainingFolgas = (folgasByDate.get(popupDay) ?? []).filter(x => x.id !== f.id)
+        const hasDeadlines = (deadlinesByDate.get(popupDay) ?? []).length > 0
+        const hasFeriados = (feriadosByDate.get(popupDay) ?? []).length > 0
+        if (remainingFolgas.length === 0 && !hasDeadlines && !hasFeriados) {
+          setPopupDay(null)
+        }
+      }
+    } catch {
+      showToast('Erro ao excluir registro.', 'error')
+    } finally {
+      hideLoader()
+    }
   }
 
   const closePopup = useCallback(() => setPopupDay(null), [])

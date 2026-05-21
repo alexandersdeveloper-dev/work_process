@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase'
+import { useFocusTrap } from '@/hooks/use-focus-trap'
 import { useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/query-keys'
 import { useActionLoader } from '@/contexts/ActionLoaderContext'
@@ -22,6 +23,7 @@ interface Props {
 
 export default function KanbanFormModal({ userId, card, defaultColumn = 'todo', onClose }: Props) {
   const [mounted, setMounted] = useState(false)
+  const modalRef = useFocusTrap(mounted)
   const [submitting, setSubmitting] = useState(false)
   const [title, setTitle] = useState(card?.title ?? '')
   const [description, setDescription] = useState(card?.description ?? '')
@@ -138,6 +140,7 @@ export default function KanbanFormModal({ userId, card, defaultColumn = 'todo', 
       onClick={(e) => { if (e.target === e.currentTarget) close() }}
     >
       <div
+        ref={modalRef}
         style={{
           background: 'var(--panel)',
           border: '1px solid var(--line)',

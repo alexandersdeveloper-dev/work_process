@@ -12,10 +12,12 @@ async function fetchKanbanShares(cardId: string): Promise<KanbanShare[]> {
   return (data as unknown as KanbanShare[]) ?? []
 }
 
-export function useKanbanShares(cardId: string) {
+export function useKanbanShares(cardId: string, initialData?: KanbanShare[]) {
   return useQuery<KanbanShare[]>({
     queryKey: queryKeys.kanbanShares(cardId),
     queryFn: () => fetchKanbanShares(cardId),
+    initialData,
+    initialDataUpdatedAt: initialData ? Date.now() : undefined,
     staleTime: 30 * 1000,
     enabled: !!cardId,
   })

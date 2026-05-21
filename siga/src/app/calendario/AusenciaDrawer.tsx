@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import { useFocusTrap } from '@/hooks/use-focus-trap'
 import { useUser } from '@/lib/user-context'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useActionLoader } from '@/contexts/ActionLoaderContext'
@@ -20,6 +21,7 @@ function fmtDay(iso: string) {
 }
 
 export default function AusenciaDrawer({ selectedDays, onRemoveDay, onClose, onRegistered }: Props) {
+  const drawerRef = useFocusTrap<HTMLDivElement>(true)
   const { user } = useUser()
   const supabase = createClient()
   const { data: profiles = [], isLoading: loadingProfiles } = useProfiles()
@@ -51,52 +53,50 @@ export default function AusenciaDrawer({ selectedDays, onRemoveDay, onClose, onR
     const registeredBy = user!.id
 
     try {
+      const desc = description.trim() || null
+
       if (type === 'ferias') {
         const start = selectedDays[0]
         const end = selectedDays[selectedDays.length - 1]
         const body = `Férias de ${fmtDay(start)} a ${fmtDay(end)}.`
 
-        const results = await Promise.all(
-          selectedIds.map((uid) =>
-            supabase.from('folgas')
-              .insert({ user_id: uid, registered_by: registeredBy, date: start, end_date: end, type: 'ferias', description: description.trim() || null })
-              .select().single()
-          )
-        )
-        const failed = results.find((r) => r.error)
-        if (failed) throw new Error(failed.error!.message)
+        const records = selectedIds.map((uid) => ({
+          user_id: uid, registered_by: registeredBy,
+          date: start, end_date: end, type: 'ferias' as AusenciaType, description: desc,
+        }))
+        const { data, error } = await supabase.from('folgas').insert(records).select('id, user_id')
+        if (error) throw error
 
         await Promise.all(
-          results.map((r) =>
+          (data ?? []).map((row: { id: string; user_id: string }) =>
             supabase.from('notifications').insert({
-              user_id: (r.data as { user_id: string }).user_id,
-              type: 'folga_registered', title: 'Férias registradas', body,
-              related_id: (r.data as { id: string }).id, related_type: 'folga',
+              user_id: row.user_id, type: 'folga_registered', title: 'Férias registradas', body,
+              related_id: row.id, related_type: 'folga',
             })
           )
         )
       } else {
         const label = selectedDays.length === 1 ? fmtDay(selectedDays[0]) : `${selectedDays.length} dias`
 
-        const results = await Promise.all(
-          selectedIds.map((uid) => {
-            const records = selectedDays.map((d) => ({
-              user_id: uid, registered_by: registeredBy, date: d,
-              end_date: null, type: 'folga' as AusenciaType, description: description.trim() || null,
-            }))
-            return supabase.from('folgas').insert(records).select()
-          })
+        const records = selectedIds.flatMap((uid) =>
+          selectedDays.map((d) => ({
+            user_id: uid, registered_by: registeredBy, date: d,
+            end_date: null, type: 'folga' as AusenciaType, description: desc,
+          }))
         )
-        const failed = results.find((r) => r.error)
-        if (failed) throw new Error(failed.error!.message)
+        const { data, error } = await supabase.from('folgas').insert(records).select('id, user_id')
+        if (error) throw error
 
+        const firstByUser = new Map<string, string>()
+        for (const row of data ?? []) {
+          if (!firstByUser.has(row.user_id)) firstByUser.set(row.user_id, row.id)
+        }
         await Promise.all(
-          results.map((r, i) =>
+          selectedIds.map((uid) =>
             supabase.from('notifications').insert({
-              user_id: selectedIds[i],
-              type: 'folga_registered', title: 'Folga registrada',
+              user_id: uid, type: 'folga_registered', title: 'Folga registrada',
               body: `Folga registrada: ${label}.`,
-              related_id: (r.data as { id: string }[])[0]?.id, related_type: 'folga',
+              related_id: firstByUser.get(uid), related_type: 'folga',
             })
           )
         )
@@ -124,7 +124,7 @@ export default function AusenciaDrawer({ selectedDays, onRemoveDay, onClose, onR
 
   return (
     <div className="cal-drawer">
-      <div className="card" style={{ overflow: 'hidden' }}>
+      <div ref={drawerRef} className="card" style={{ overflow: 'hidden' }}>
         {/* Header */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',

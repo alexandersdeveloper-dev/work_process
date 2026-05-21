@@ -14,6 +14,7 @@ import { queryKeys } from '@/lib/query-keys'
 import { useActionLoader } from '@/contexts/ActionLoaderContext'
 import { useToast } from '@/contexts/ToastContext'
 import ComunicadoForm from './ComunicadoForm'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('pt-BR', {
@@ -35,6 +36,7 @@ function ComunicadoCard({ comunicado, canManage, onDelete }: {
 }) {
   const [expanded, setExpanded] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [confirming, setConfirming] = useState(false)
   const supabase = createClient()
   const { showLoader, hideLoader } = useActionLoader()
   const { showToast } = useToast()
@@ -42,7 +44,7 @@ function ComunicadoCard({ comunicado, canManage, onDelete }: {
   const typePill = TYPE_PILL[comunicado.type] ?? 'info'
 
   async function handleDelete() {
-    if (!confirm('Excluir este comunicado?')) return
+    setConfirming(false)
     setDeleting(true)
     showLoader()
     try {
@@ -118,7 +120,7 @@ function ComunicadoCard({ comunicado, canManage, onDelete }: {
               <Link href={`/comunicados/${comunicado.id}/edit`}>
                 <button className="btn sm ghost">Editar</button>
               </Link>
-              <button className="btn sm ghost" onClick={handleDelete} disabled={deleting}
+              <button className="btn sm ghost" onClick={() => setConfirming(true)} disabled={deleting}
                 style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}>
                 {deleting ? 'Excluindo…' : 'Excluir'}
               </button>
@@ -126,6 +128,15 @@ function ComunicadoCard({ comunicado, canManage, onDelete }: {
           )}
         </div>
       )}
+
+      <ConfirmModal
+        open={confirming}
+        title="Excluir comunicado?"
+        description={`"${comunicado.title}" será excluído permanentemente. Esta ação não pode ser desfeita.`}
+        confirmLabel="Excluir"
+        onConfirm={handleDelete}
+        onCancel={() => setConfirming(false)}
+      />
     </div>
   )
 }
@@ -229,12 +240,7 @@ export default function ComunicadosClient({
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {[1, 2, 3].map((i) => (
-            <div key={i} style={{
-              height: 80, borderRadius: 8,
-              background: 'var(--panel-alt)',
-              border: '1px solid var(--line)',
-              animation: 'pulse 1.2s ease-in-out infinite',
-            }} />
+            <div key={i} className="skel" style={{ height: 80, borderRadius: 8 }} />
           ))}
         </div>
       </>
@@ -257,9 +263,27 @@ export default function ComunicadosClient({
 
       {list.length === 0 ? (
         <div className="card">
-          <div className="empty" style={{ padding: '48px 24px' }}>
-            <p>Nenhum comunicado publicado ainda.</p>
-          </div>
+          {canManage ? (
+            <div className="empty" style={{ padding: '48px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.3" strokeLinecap="round">
+                <path d="M19 4H5a2 2 0 00-2 2v12a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2z" />
+                <path d="M8 10h8M8 14h5" />
+              </svg>
+              <p style={{ margin: 0 }}>Nenhum comunicado publicado ainda.</p>
+              <button className="btn primary" style={{ marginTop: 4 }} onClick={() => setShowModal(true)}>
+                + Publicar primeiro comunicado
+              </button>
+            </div>
+          ) : (
+            <div className="empty" style={{ padding: '48px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.3" strokeLinecap="round">
+                <path d="M18 8h1a4 4 0 010 8h-1M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z" />
+                <path d="M6 1v3M10 1v3M14 1v3" />
+              </svg>
+              <p style={{ margin: 0 }}>Aguardando comunicados da sua unidade.</p>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>Você será notificado quando houver novidades.</p>
+            </div>
+          )}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

@@ -5,6 +5,8 @@ import type { Process } from '@/types'
 
 const PROCESS_SELECT = 'id, title, type, priority, status, responsible, deadline, description, portal_section, created_at, updated_at, owner_id'
 
+export const PROCESS_LIMIT = 150
+
 async function fetchOwnProcesses(userId: string): Promise<Process[]> {
   const supabase = createClient()
   const { data, error } = await supabase
@@ -12,6 +14,7 @@ async function fetchOwnProcesses(userId: string): Promise<Process[]> {
     .select(PROCESS_SELECT)
     .eq('owner_id', userId)
     .order('created_at', { ascending: false })
+    .limit(PROCESS_LIMIT)
   if (error) throw error
   return (data ?? []) as Process[]
 }
@@ -31,6 +34,7 @@ async function fetchSharedProcesses(userId: string): Promise<Process[]> {
     .select(PROCESS_SELECT)
     .in('id', ids)
     .order('updated_at', { ascending: false })
+    .limit(PROCESS_LIMIT)
   if (error) throw error
   return (data ?? []) as Process[]
 }
@@ -65,6 +69,7 @@ async function fetchAllProcesses(): Promise<Process[]> {
     .from('processes')
     .select(PROCESS_SELECT)
     .order('created_at', { ascending: false })
+    .limit(PROCESS_LIMIT)
   if (error) throw error
   return (data ?? []) as Process[]
 }

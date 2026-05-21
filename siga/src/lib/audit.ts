@@ -8,6 +8,29 @@ function serviceClient() {
   )
 }
 
+export interface ProcessHistoryEntry {
+  id: string
+  action: string
+  metadata: Record<string, unknown> | null
+  created_at: string
+  actor: { full_name: string }[] | null
+}
+
+export async function getProcessHistory(processId: string, limit = 20): Promise<ProcessHistoryEntry[]> {
+  try {
+    const { data } = await serviceClient()
+      .from('audit_logs')
+      .select('id, action, metadata, created_at, actor:profiles!audit_logs_actor_id_fkey(full_name)')
+      .eq('target_id', processId)
+      .eq('target_type', 'process')
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    return (data ?? []) as unknown as ProcessHistoryEntry[]
+  } catch {
+    return []
+  }
+}
+
 export type AuditAction =
   | 'user_created'
   | 'user_deleted'

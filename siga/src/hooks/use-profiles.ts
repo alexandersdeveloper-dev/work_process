@@ -11,7 +11,7 @@ export function useProfiles() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, full_name, role, cargo')
         .neq('role', 'admin')
         .order('full_name')
       if (error) throw error

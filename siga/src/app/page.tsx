@@ -5,30 +5,21 @@ import Link from 'next/link'
 import { STATUS_LABELS, STATUS_KIND, getProcessTypeLabel } from '@/types'
 import type { Process } from '@/types'
 import DeadlineNotifier from './DeadlineNotifier'
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
-}
-
-function formatDateShort(iso: string) {
-  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
-}
-
-function deadlineKind(iso: string | null | undefined): 'overdue' | 'soon' | null {
-  if (!iso) return null
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const d = new Date(iso)
-  d.setHours(0, 0, 0, 0)
-  if (d < today) return 'overdue'
-  const diff = (d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-  return diff <= 7 ? 'soon' : null
-}
+import { formatDateMedium, formatDateShort, deadlineKind } from '@/lib/process-utils'
+import OnboardingModal from '@/components/onboarding/OnboardingModal'
 
 export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   const uid = user?.id ?? ''
+
+  const { data: profileData } = await supabase
+    .from('profiles')
+    .select('onboarding_done')
+    .eq('id', uid)
+    .single()
+
+  const showOnboarding = profileData?.onboarding_done === false
 
   // 2 queries total instead of 4: get shared ids, then fetch all processes once
   const { data: shared } = await supabase
@@ -59,6 +50,7 @@ export default async function DashboardPage() {
   return (
     <>
       {uid && <DeadlineNotifier userId={uid} />}
+      {uid && showOnboarding && <OnboardingModal userId={uid} />}
 
       <div className="page-head">
         <div>
@@ -176,7 +168,7 @@ export default async function DashboardPage() {
                         </span>
                       </td>
                       <td className="muted">{p.responsible}</td>
-                      <td className="muted" suppressHydrationWarning>{p.deadline ? formatDate(p.deadline) : '—'}</td>
+                      <td className="muted" suppressHydrationWarning>{p.deadline ? formatDateMedium(p.deadline) : '—'}</td>
                     </tr>
                   ))}
                 </tbody>

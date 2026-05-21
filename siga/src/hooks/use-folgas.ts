@@ -14,11 +14,13 @@ async function fetchFolgas(userId: string, role: string): Promise<Folga[]> {
   return (data as unknown as Folga[]) ?? []
 }
 
-export function useFolgas(userId: string, role: string) {
+export function useFolgas(userId: string, role: string, initialData?: Folga[]) {
   return useQuery({
     queryKey: queryKeys.folgas(userId, role),
     queryFn: () => fetchFolgas(userId, role),
-    staleTime: 2 * 60 * 1000,
+    initialData,
+    initialDataUpdatedAt: initialData ? Date.now() : undefined,
+    staleTime: 5 * 60 * 1000,
     enabled: !!userId && !!role,
     placeholderData: keepPreviousData,
   })

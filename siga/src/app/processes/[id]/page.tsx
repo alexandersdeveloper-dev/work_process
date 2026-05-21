@@ -10,6 +10,8 @@ import AddStepModal from './AddStepModal'
 import DeleteProcessButton from './DeleteProcessButton'
 import CollapsibleInfo from './CollapsibleInfo'
 import ShareModal from './ShareModal'
+import ProcessHistory from './ProcessHistory'
+import { getProcessHistory } from '@/lib/audit'
 
 async function getProcess(id: string): Promise<Process | null> {
   const supabase = await createServerSupabaseClient()
@@ -54,7 +56,7 @@ export default async function ProcessDetailPage({ params }: { params: Promise<{ 
     ? await supabase.from('profiles').select('role').eq('id', user.id).single()
     : { data: null }
 
-  const [process, shares] = await Promise.all([getProcess(id), getShares(id)])
+  const [process, shares, history] = await Promise.all([getProcess(id), getShares(id), getProcessHistory(id)])
 
   if (!process) notFound()
 
@@ -131,6 +133,8 @@ export default async function ProcessDetailPage({ params }: { params: Promise<{ 
           stepsFiltered={stepsFiltered}
           canShare={canShare}
         />
+
+        <ProcessHistory entries={history} />
       </div>
     </>
   )

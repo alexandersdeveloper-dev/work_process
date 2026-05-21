@@ -318,27 +318,30 @@ button, [role="button"] { user-select: none; -webkit-user-select: none; }
 .topbar .spacer { flex: 1; }
 
 .search {
-  position: relative;
-  width: 300px;
-}
-.search input {
-  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 260px;
   border: 1px solid var(--line);
   background: var(--bg);
-  padding: 8px 12px 8px 34px;
+  padding: 6px 10px 6px 10px;
   font: inherit;
   font-size: 13px;
-  color: var(--ink);
-  outline: none;
-  border-radius: 2px;
-  transition: border-color .15s;
-}
-.search input:focus { border-color: var(--ink); }
-.search .ico {
-  position: absolute;
-  left: 10px; top: 50%; transform: translateY(-50%);
   color: var(--muted);
-  pointer-events: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  text-align: left;
+}
+.search:hover { border-color: var(--ink-2); background: var(--panel-alt); }
+.search .ico { color: var(--muted); flex-shrink: 0; }
+.search-placeholder { flex: 1; font-size: 13px; color: var(--muted); }
+.search-kbd {
+  font-size: 10.5px; color: var(--muted);
+  background: var(--panel-alt); border: 1px solid var(--line);
+  border-radius: 4px; padding: 1px 5px;
+  font-family: var(--font-mono);
+  flex-shrink: 0;
 }
 
 .iconbtn {
@@ -367,15 +370,15 @@ button, [role="button"] { user-select: none; -webkit-user-select: none; }
 }
 
 @keyframes shimmer {
-  from { background-position: -400px 0; }
-  to   { background-position: 400px 0; }
+  from { background-position: -600px 0; }
+  to   { background-position: 600px 0; }
 }
 
-.skel {
+.skel, .skeleton {
   border-radius: 4px;
-  background: linear-gradient(90deg, var(--line) 25%, var(--line-2) 50%, var(--line) 75%);
-  background-size: 400px 100%;
-  animation: shimmer 1.4s ease infinite;
+  background: linear-gradient(90deg, var(--line) 25%, var(--panel) 50%, var(--line) 75%);
+  background-size: 600px 100%;
+  animation: shimmer 1.4s linear infinite;
 }
 
 .content {
@@ -1427,6 +1430,10 @@ table.t {
   50% { opacity: 0.25; }
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 @keyframes action-loader-slide {
   0%   { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
@@ -1656,6 +1663,30 @@ table.t {
   height: 1px;
   background: var(--line);
   margin: 4px 0;
+}
+
+/* Mobile-only "Mover para" select inside card dropdown */
+.kc-move-select-wrap {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.kc-move-select {
+  flex: 1;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel-alt);
+  color: var(--ink);
+  font-size: 12.5px;
+  padding: 0 6px;
+  cursor: pointer;
+}
+@media (max-width: 768px) {
+  .kc-move-select-wrap { display: flex; }
 }
 
 .kc-ver-mais {

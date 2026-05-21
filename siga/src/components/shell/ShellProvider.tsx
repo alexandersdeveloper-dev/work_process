@@ -11,6 +11,9 @@ interface ShellCtx {
   collapsed: boolean
   setCollapsed: (v: boolean) => void
   toggleCollapsed: () => void
+  searchOpen: boolean
+  openSearch: () => void
+  closeSearch: () => void
 }
 
 const Ctx = createContext<ShellCtx>({} as ShellCtx)
@@ -21,6 +24,9 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [collapsed, setCollapsedState] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const openSearch = useCallback(() => setSearchOpen(true), [])
+  const closeSearch = useCallback(() => setSearchOpen(false), [])
 
   useEffect(() => {
     const saved = localStorage.getItem('siga_theme') as 'light' | 'dark' | null
@@ -59,7 +65,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const closeSidebar = useCallback(() => setSidebarOpen(false), [])
 
   return (
-    <Ctx.Provider value={{ theme, toggleTheme, sidebarOpen, toggleSidebar, closeSidebar, collapsed, setCollapsed, toggleCollapsed }}>
+    <Ctx.Provider value={{ theme, toggleTheme, sidebarOpen, toggleSidebar, closeSidebar, collapsed, setCollapsed, toggleCollapsed, searchOpen, openSearch, closeSearch }}>
       {children}
     </Ctx.Provider>
   )

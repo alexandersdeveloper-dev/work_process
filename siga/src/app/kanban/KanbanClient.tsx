@@ -144,6 +144,7 @@ export default function KanbanClient({ initialCards, userId }: Props) {
             onEdit={handleEdit}
             onShare={handleShare}
             onDelete={handleDeleteCard}
+            onMove={handleMoveCard}
             onAddCard={handleAddCard}
           />
         ))}

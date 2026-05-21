@@ -3,13 +3,16 @@
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useShell } from './ShellProvider'
+import { useEffect, useState } from 'react'
 import { useUser } from '@/lib/user-context'
 import LogoutButton from './LogoutButton'
 import NotificationBell from './NotificationBell'
 
 export default function Topbar() {
   const pathname = usePathname()
-  const { theme, toggleTheme, toggleSidebar } = useShell()
+  const { theme, toggleTheme, toggleSidebar, openSearch } = useShell()
+  const [isMac, setIsMac] = useState(false)
+  useEffect(() => { setIsMac(/Mac|iPhone|iPad/.test(navigator.platform)) }, [])
   const { profile } = useUser()
 
   const isDetail = pathname.match(/^\/processes\/[^/]+$/) && !pathname.endsWith('/new')
@@ -64,13 +67,19 @@ export default function Topbar() {
 
       <div className="spacer" />
 
-      <div className="search">
+      <button
+        className="search"
+        onClick={openSearch}
+        aria-label="Busca global"
+        suppressHydrationWarning
+      >
         <svg className="ico" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
           <circle cx="7" cy="7" r="4.5" />
           <path d="M10.5 10.5L14 14" strokeLinecap="round" />
         </svg>
-        <input placeholder="Buscar processos…" />
-      </div>
+        <span className="search-placeholder">Buscar…</span>
+        <kbd className="search-kbd" suppressHydrationWarning>{isMac ? '⌘K' : 'Ctrl+K'}</kbd>
+      </button>
 
       {/* Dark mode toggle */}
       <button className="iconbtn" onClick={toggleTheme} aria-label="Alternar tema" title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}>

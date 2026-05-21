@@ -3,14 +3,17 @@ import { createClient } from '@/lib/supabase'
 import { queryKeys } from '@/lib/query-keys'
 import type { Comunicado } from '@/types'
 
+export const COMUNICADO_LIMIT = 100
+
 async function fetchComunicados(userId: string, role: string): Promise<Comunicado[]> {
   const supabase = createClient()
   const isPrivileged = role === 'admin' || role === 'chefe'
 
   let query = supabase
     .from('comunicados')
-    .select('*, author:profiles!comunicados_author_id_fkey(*)')
+    .select('*, author:profiles!comunicados_author_id_fkey(id, full_name, role)')
     .order('created_at', { ascending: false })
+    .limit(COMUNICADO_LIMIT)
 
   if (!isPrivileged) {
     query = query.or(`target_user_ids.is.null,target_user_ids.cs.{${userId}}`)

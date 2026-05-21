@@ -7,7 +7,7 @@ async function fetchFeriados(): Promise<Feriado[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('feriados')
-    .select('*')
+    .select('id, name, type, scope, recurrence, month, day, week_of_month, weekday, pascal_offset, date, impact, active, created_by, created_at')
     .order('active', { ascending: false })
     .order('recurrence', { ascending: false })
     .order('month', { ascending: true, nullsFirst: false })
