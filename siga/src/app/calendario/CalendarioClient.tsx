@@ -423,7 +423,7 @@ export default function CalendarioClient() {
   const role = profile?.role ?? ''
   const canAdd = canManageFolgas(profile?.role)
   const { collapsed, setCollapsed } = useShell()
-  const prevCollapsed = useRef(false)
+  const prevCollapsed = useRef(collapsed)
 
   const { data: folgas = [], isLoading: folgasLoading } = useFolgas(userId, role)
   const { data: deadlines = [], isLoading: deadlinesLoading } = useDeadlines(userId, role)
